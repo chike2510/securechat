@@ -22,9 +22,14 @@ function contextFor(email: string): TrpcContext {
 }
 
 describe("SecureChat security boundaries", () => {
-  it("rejects non-university accounts before conversation access", async () => {
+  it("rejects accounts without a registered matric identity", async () => {
     const caller = appRouter.createCaller(contextFor("visitor@example.com"));
     await expect(caller.secureChat.searchUsers({ query: "alex" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("accepts a normal email when the account has a matric identity", async () => {
+    const caller = appRouter.createCaller({ ...contextFor("student.personal@gmail.com"), user: { ...contextFor("student.personal@gmail.com").user!, matricNumber: "FUPRE-001", universityEmail: "student.personal@gmail.com" } });
+    await expect(caller.secureChat.searchUsers({ query: "alex" })).resolves.toEqual([]);
   });
 
   it("recognises ciphertext-shaped payloads but not readable plaintext", () => {
