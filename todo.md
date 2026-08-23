@@ -56,6 +56,9 @@
 - [ ] Add a polling-compatible refresh path for conversations, messages, presence, and notifications when Socket.IO is unavailable
 - [ ] Document the Vercel limitation: serverless deployment does not provide persistent Socket.IO connections
 - [ ] Verify the deployed `/api/trpc/auth.me` endpoint and commit the Vercel backend adaptation
-- [ ] Fix Vercel TypeScript errors in localAuth request/response typing and cookie handling
-- [ ] Fix Vercel serverless handler typing, context `info`, and cookie serialization
-- [ ] Re-run the Vercel-style production build and push the corrected API
+- [x] Fix Vercel TypeScript errors in localAuth request/response typing and cookie handling
+- [x] Fix Vercel serverless handler typing, context `info`, and cookie serialization
+- [x] Re-run the Vercel-style production build and push the corrected API
+- [ ] Fix deployed account creation so non-JSON Vercel errors are handled clearly and successful registration returns a valid response
+- [ ] Replace the initial “preparing workspace” loading copy with a concise SecureChat loading state
+- [ ] Verify registration, login entry, and initial loading behavior after the Vercel redeployment

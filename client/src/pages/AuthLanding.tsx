@@ -25,7 +25,11 @@ export default function AuthLanding() {
         await loginMutation.mutateAsync({ matricNumber, password });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not sign you in");
+      const rawMessage = error instanceof Error ? error.message : "";
+      const message = rawMessage.includes("Unexpected token") || rawMessage.includes("JSON")
+        ? "SecureChat is temporarily unavailable. Please try again."
+        : rawMessage || "Could not complete that request.";
+      toast.error(message);
     }
   };
 
