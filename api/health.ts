@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-
-export default function health(_req: VercelRequest, res: VercelResponse) {
-  res.status(200).json({ ok: true, service: "securechat-api" });
+export default function health(_req: any, res: any) {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify({ ok: true, service: "securechat-api" }));
 }
