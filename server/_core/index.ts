@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
@@ -31,6 +32,17 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  const io = new SocketIOServer(server, { path: "/api/socket.io", cors: { origin: true, credentials: true } });
+  io.on("connection", socket => {
+    socket.on("join-conversation", (conversationId: number) => socket.join(`conversation:${conversationId}`));
+    socket.on("leave-conversation", (conversationId: number) => socket.leave(`conversation:${conversationId}`));
+    socket.on("message-created", (payload: { conversationId: number; messageId: number }) => {
+      socket.to(`conversation:${payload.conversationId}`).emit("message-created", payload);
+    });
+    socket.on("presence-changed", (payload: { userId: number; online: boolean }) => {
+      socket.broadcast.emit("presence-changed", payload);
+    });
+  });
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
