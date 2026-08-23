@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { clearSessionCookie, createSessionToken, hashPassword, setSessionCookie, verifyPassword } from "./localAuth";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
