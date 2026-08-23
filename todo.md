@@ -42,3 +42,6 @@
 - [x] Keep login fields as matric number and password
 - [x] Improve mobile landing layout by reducing vertical content and removing unnecessary technical badges/explanations
 - [x] Verify and synchronize the simplified entry experience
+- [ ] Fix Vercel deployment serving raw source files instead of the built SecureChat application
+- [ ] Verify Vercel build output, SPA fallback, and backend routing configuration
+- [ ] Commit and push the deployment fix to chike2510/securechat
