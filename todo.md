@@ -31,6 +31,9 @@
 - [x] Add runnable mocked-database tests for participant-only conversation and message access
 - [x] Add runnable mocked-database tests for persisted sent-to-delivered-to-read updates
 - [x] Add runnable mocked-database tests for marking notifications as read
-- [ ] Remove Manus OAuth routes, SDK dependencies, client redirects, and OAuth-only template artifacts
-- [ ] Implement local signed-session authentication with FUPRE matric number and university email validation
-- [ ] Run final checks and commit the OAuth-free SecureChat project to chike2510/securechat
+- [x] Remove Manus OAuth routes, SDK dependencies, client redirects, and OAuth-only template artifacts
+- [x] Implement local signed-session authentication with FUPRE matric number and university email validation
+- [x] Run final checks and commit the OAuth-free SecureChat project to chike2510/securechat
+- [x] Remove the incorrect FUPRE email-domain requirement and support normal student email addresses with matric-number identity
+- [x] Update authentication copy and security documentation to distinguish identity verification from email-domain validation
+- [x] Update tests, verify the corrected auth flow, and synchronize the fix to chike2510/securechat

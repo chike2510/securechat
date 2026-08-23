@@ -22,9 +22,8 @@ import {
 const matricSchema = z.string().trim().min(4).max(40).transform(value => value.toUpperCase());
 const universityEmailSchema = z.string().trim().email().max(320).transform(value => value.toLowerCase());
 const universityProcedure = protectedProcedure.use(({ ctx, next }) => {
-  const email = ctx.user.universityEmail?.toLowerCase() ?? ctx.user.email?.toLowerCase() ?? "";
-  if (!ctx.user.matricNumber || !email.endsWith("@fupre.edu.ng")) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "SecureChat is restricted to approved FUPRE university accounts." });
+  if (!ctx.user.matricNumber || !(ctx.user.universityEmail ?? ctx.user.email)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "SecureChat requires a registered student identity." });
   }
   return next();
 });
@@ -39,7 +38,6 @@ export const appRouter = router({
       name: z.string().trim().min(2).max(120),
       password: z.string().min(8).max(128),
     })).mutation(async ({ ctx, input }) => {
-      if (!input.universityEmail.endsWith("@fupre.edu.ng")) throw new TRPCError({ code: "BAD_REQUEST", message: "Use an approved FUPRE email address." });
       if (await getUserByMatricNumber(input.matricNumber)) throw new TRPCError({ code: "CONFLICT", message: "That matric number is already registered." });
       const userId = await createLocalUser({ ...input, passwordHash: hashPassword(input.password) });
       if (!userId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not create account." });
