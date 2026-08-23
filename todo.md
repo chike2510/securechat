@@ -37,3 +37,8 @@
 - [x] Remove the incorrect FUPRE email-domain requirement and support normal student email addresses with matric-number identity
 - [x] Update authentication copy and security documentation to distinguish identity verification from email-domain validation
 - [x] Update tests, verify the corrected auth flow, and synchronize the fix to chike2510/securechat
+- [x] Replace dramatic/report-style landing copy with concise natural SecureChat app copy
+- [x] Keep registration fields as email, matric number, name, and password
+- [x] Keep login fields as matric number and password
+- [x] Improve mobile landing layout by reducing vertical content and removing unnecessary technical badges/explanations
+- [x] Verify and synchronize the simplified entry experience
