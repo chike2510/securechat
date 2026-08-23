@@ -1,0 +1,36 @@
+# Project TODO
+
+- [x] Define SecureChat data model for users, conversations, participants, encrypted messages, message statuses, and in-app notifications
+- [x] Build authentication-aware SecureChat entry flow for registered university users
+- [x] Implement protected responsive two-pane chat workspace
+- [x] Add user search and conversation list with online and last-seen indicators
+- [x] Add mobile navigation and accessible responsive interaction states
+- [x] Implement one-to-one message exchange with sent, delivered, and read states
+- [x] Generate browser-side encryption key pairs and persist private key locally
+- [x] Encrypt every message locally before transmission using authenticated encryption
+- [x] Store ciphertext, IV/nonce, timestamps, and delivery metadata only on the server
+- [x] Enforce participant-only conversation and encrypted-message access checks
+- [x] Add conversation security view showing encrypted payload and client-side encryption flow
+- [x] Handle empty conversations, reconnecting/offline recipients, sending failures, and unauthorized access
+- [x] Add in-app notification when recipient receives a new encrypted message
+- [x] Add in-app notification when an offline recipient returns to the platform
+- [x] Add concise privacy and academic prototype limitations notice
+- [x] Apply blueprint-inspired visual design with grid background, technical labels, formulas, wireframes, and subtle motion
+- [x] Add unit tests for encryption, participant authorization, message lifecycle, and notification behaviour
+- [x] Run type-check, tests, and visual verification
+- [x] Review todo.md and save final project checkpoint
+- [x] Enforce university-user eligibility in the auth flow instead of copy-only messaging
+- [x] Implement actual real-time delivery with WebSocket or Socket.IO and recipient-driven delivered/read updates
+- [x] Add explicit frontend unauthorized, query-error, send-failure, and reconnect states
+- [x] Build visible in-app notifications for new encrypted messages and returning contacts, with read actions
+- [x] Add executable Vitest coverage for crypto utilities, participant authorization, message lifecycle, and notifications
+- [x] Drive delivered status when a recipient receives or opens an encrypted message
+- [x] Surface explicit forbidden and protected-query error states in the frontend
+- [x] Add executable tests for participant access, sent-to-delivered-to-read lifecycle, and notification read flow
+- [x] Add explicit documentation and test coverage that delivered status is confirmed when a recipient opens a conversation; background unread notification remains pending until opened
+- [x] Add runnable mocked-database tests for participant-only conversation and message access
+- [x] Add runnable mocked-database tests for persisted sent-to-delivered-to-read updates
+- [x] Add runnable mocked-database tests for marking notifications as read
+- [ ] Remove Manus OAuth routes, SDK dependencies, client redirects, and OAuth-only template artifacts
+- [ ] Implement local signed-session authentication with FUPRE matric number and university email validation
+- [ ] Run final checks and commit the OAuth-free SecureChat project to chike2510/securechat
