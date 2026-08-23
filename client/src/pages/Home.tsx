@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { startLogin } from "@/const";
+import AuthLanding from "@/pages/AuthLanding";
 import { trpc } from "@/lib/trpc";
 import { decryptMessage, encryptMessage, ensureIdentity, isEncryptedPayload } from "@/lib/crypto";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -133,7 +133,7 @@ export default function Home() {
   if (loading) return <div className="min-h-screen blueprint-bg flex items-center justify-center"><div className="font-mono text-xs uppercase tracking-[0.28em] text-slate-500 animate-pulse">Initialising secure workspace</div></div>;
 
   if (!isAuthenticated || !user) {
-    return <Landing onLogin={() => startLogin()} />;
+    return <AuthLanding />;
   }
 
   return (

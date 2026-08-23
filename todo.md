@@ -31,3 +31,6 @@
 - [x] Add runnable mocked-database tests for participant-only conversation and message access
 - [x] Add runnable mocked-database tests for persisted sent-to-delivered-to-read updates
 - [x] Add runnable mocked-database tests for marking notifications as read
+- [x] Remove Manus OAuth routes, SDK dependencies, client redirects, and OAuth-only template artifacts
+- [x] Implement local signed-session authentication with FUPRE matric number and university email validation
+- [x] Run final checks and commit the OAuth-free SecureChat project to chike2510/securechat

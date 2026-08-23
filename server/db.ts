@@ -72,6 +72,35 @@ export async function getUserById(id: number) {
   return result[0];
 }
 
+export async function getUserByMatricNumber(matricNumber: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.matricNumber, matricNumber)).limit(1);
+  return result[0];
+}
+
+export async function getUserByUniversityEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.universityEmail, email)).limit(1);
+  return result[0];
+}
+
+export async function createLocalUser(input: { matricNumber: string; universityEmail: string; name: string; passwordHash: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const inserted = await db.insert(users).values({
+    openId: `local:${input.matricNumber}`,
+    matricNumber: input.matricNumber,
+    universityEmail: input.universityEmail,
+    email: input.universityEmail,
+    name: input.name,
+    passwordHash: input.passwordHash,
+    loginMethod: "matric-password",
+  }).$returningId();
+  return inserted[0]?.id;
+}
+
 export async function searchUsers(currentUserId: number, query: string) {
   const db = await getDb();
   if (!db) return [];
