@@ -64,3 +64,5 @@
 - [ ] Verify registration, login entry, and initial loading behavior after the Vercel redeployment
 - [ ] Fix Vercel ESM resolution for server/routers in the deployed tRPC function
 - [ ] Verify the corrected Vercel API response and registration path
+- [ ] Replace `api/trpc/[...path].ts` extensionless re-export with a self-contained Vercel handler
+- [ ] Verify the deployed tRPC endpoint after the wrapper replacement
