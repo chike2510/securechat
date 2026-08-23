@@ -11,6 +11,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle";
+import { assertParticipantAccess } from "./accessControl";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -194,7 +195,7 @@ export async function listConversations(userId: number) {
 }
 
 export async function listEncryptedMessages(userId: number, conversationId: number) {
-  if (!(await userIsParticipant(userId, conversationId))) throw new Error("Unauthorized conversation access");
+  assertParticipantAccess(true, await userIsParticipant(userId, conversationId), "Unauthorized conversation access");
   const db = await getDb();
   if (!db) return [];
   return db.select().from(encryptedMessages).where(eq(encryptedMessages.conversationId, conversationId)).orderBy(encryptedMessages.createdAt);
@@ -238,7 +239,7 @@ export async function updateMessageStatus(userId: number, messageId: number, sta
   const db = await getDb();
   if (!db) return;
   const message = await db.select().from(encryptedMessages).where(eq(encryptedMessages.id, messageId)).limit(1);
-  if (!message[0] || !(await userIsParticipant(userId, message[0].conversationId))) throw new Error("Unauthorized message access");
+  assertParticipantAccess(Boolean(message[0]), Boolean(message[0] && await userIsParticipant(userId, message[0].conversationId)), "Unauthorized message access");
   const currentStatus = await db.select({ status: messageStatuses.status }).from(messageStatuses)
     .where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId))).limit(1);
   const nextStatus = advanceMessageStatus(currentStatus[0]?.status ?? "sent", status);
