@@ -62,3 +62,5 @@
 - [ ] Fix deployed account creation so non-JSON Vercel errors are handled clearly and successful registration returns a valid response
 - [ ] Replace the initial “preparing workspace” loading copy with a concise SecureChat loading state
 - [ ] Verify registration, login entry, and initial loading behavior after the Vercel redeployment
+- [ ] Fix Vercel ESM resolution for server/routers in the deployed tRPC function
+- [ ] Verify the corrected Vercel API response and registration path
