@@ -42,6 +42,9 @@
 - [x] Keep login fields as matric number and password
 - [x] Improve mobile landing layout by reducing vertical content and removing unnecessary technical badges/explanations
 - [x] Verify and synchronize the simplified entry experience
-- [ ] Fix Vercel deployment serving raw source files instead of the built SecureChat application
-- [ ] Verify Vercel build output, SPA fallback, and backend routing configuration
-- [ ] Commit and push the deployment fix to chike2510/securechat
+- [x] Fix Vercel deployment serving raw source files instead of the built SecureChat application
+- [x] Verify Vercel build output, SPA fallback, and backend routing configuration
+- [x] Commit and push the deployment fix to chike2510/securechat
+- [ ] Verify the live Vercel URL after redeployment instead of relying only on local build output
+- [ ] Confirm backend hosting strategy for tRPC, local sessions, and Socket.IO; do not claim Vercel hosts the full server until validated
+- [ ] Verify root and non-root SPA routes on the deployed URL
