@@ -1,7 +1,12 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import type { Request, Response } from "express";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 import { getUserById } from "./db";
+
+type SessionRequest = { headers: { cookie?: string } };
+type SessionResponse = {
+  cookie: (name: string, value: string, options: Record<string, unknown>) => void;
+  clearCookie: (name: string, options: Record<string, unknown>) => void;
+};
 
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 12;
 const secret = () => process.env.JWT_SECRET || "securechat-development-secret";
@@ -33,18 +38,20 @@ export function verifySessionToken(token: string) {
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString()) as { userId: number; exp: number };
     return data.exp > Date.now() ? data : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-export function setSessionCookie(res: Response, token: string) {
+export function setSessionCookie(res: SessionResponse, token: string) {
   res.cookie(COOKIE_NAME, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: SESSION_MAX_AGE, path: "/" });
 }
 
-export function clearSessionCookie(res: Response) {
+export function clearSessionCookie(res: SessionResponse) {
   res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: -1, path: "/" });
 }
 
-export async function authenticateLocalRequest(req: Request) {
+export async function authenticateLocalRequest(req: SessionRequest) {
   const token = req.headers.cookie?.split(";").map(value => value.trim()).find(value => value.startsWith(`${COOKIE_NAME}=`))?.slice(COOKIE_NAME.length + 1);
   if (!token) return null;
   const session = verifySessionToken(token);

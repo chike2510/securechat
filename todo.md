@@ -42,3 +42,30 @@
 - [x] Keep login fields as matric number and password
 - [x] Improve mobile landing layout by reducing vertical content and removing unnecessary technical badges/explanations
 - [x] Verify and synchronize the simplified entry experience
+- [x] Fix Vercel deployment serving raw source files instead of the built SecureChat application
+- [x] Verify Vercel build output, SPA fallback, and backend routing configuration
+- [x] Commit and push the deployment fix to chike2510/securechat
+- [x] Verify the live Vercel URL after redeployment instead of relying only on local build output
+- [x] Confirm backend hosting strategy for tRPC, local sessions, and Socket.IO; do not claim Vercel hosts the full server until validated
+- [x] Verify root and non-root SPA routes on the deployed URL
+- [ ] Revisit the live Vercel deployment after the user redeploys commit aeda6ce and confirm `/chat` renders SecureChat
+- [ ] Test a protected `/api/trpc` call and local-session behavior on the actual hosted backend
+- [ ] Document the confirmed hosting split for Vercel frontend and backend/Socket.IO services
+- [ ] Add a Vercel-compatible serverless `/api/trpc` handler for the SecureChat backend
+- [ ] Configure Vercel rewrites so `/api/trpc/*` reaches the serverless handler while SPA routes reach `index.html`
+- [ ] Add a polling-compatible refresh path for conversations, messages, presence, and notifications when Socket.IO is unavailable
+- [ ] Document the Vercel limitation: serverless deployment does not provide persistent Socket.IO connections
+- [ ] Verify the deployed `/api/trpc/auth.me` endpoint and commit the Vercel backend adaptation
+- [x] Fix Vercel TypeScript errors in localAuth request/response typing and cookie handling
+- [x] Fix Vercel serverless handler typing, context `info`, and cookie serialization
+- [x] Re-run the Vercel-style production build and push the corrected API
+- [ ] Fix deployed account creation so non-JSON Vercel errors are handled clearly and successful registration returns a valid response
+- [ ] Replace the initial “preparing workspace” loading copy with a concise SecureChat loading state
+- [ ] Verify registration, login entry, and initial loading behavior after the Vercel redeployment
+- [ ] Fix Vercel ESM resolution for server/routers in the deployed tRPC function
+- [ ] Verify the corrected Vercel API response and registration path
+- [ ] Replace `api/trpc/[...path].ts` extensionless re-export with a self-contained Vercel handler
+- [ ] Verify the deployed tRPC endpoint after the wrapper replacement
+- [x] Add GitHub Actions workflow to deploy SecureChat to Vercel on pushes to main
+- [x] Document required Vercel GitHub repository secrets and one-time setup
+- [x] Validate and commit the automatic-deployment workflow to chike2510/securechat

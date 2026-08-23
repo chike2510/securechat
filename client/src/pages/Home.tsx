@@ -130,7 +130,7 @@ export default function Home() {
     }
   };
 
-  if (loading) return <div className="min-h-screen blueprint-bg flex items-center justify-center"><div className="font-mono text-xs uppercase tracking-[0.28em] text-slate-500 animate-pulse">Initialising secure workspace</div></div>;
+  if (loading) return <div className="min-h-screen blueprint-bg flex items-center justify-center"><div className="font-mono text-xs uppercase tracking-[0.28em] text-slate-500 animate-pulse">Loading SecureChat</div></div>;
 
   if (!isAuthenticated || !user) {
     return <AuthLanding />;
