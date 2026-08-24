@@ -11,6 +11,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle";
+import { assertParticipantAccess } from "./accessControl";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -28,10 +29,11 @@ export async function getDb() {
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
+  if (!user.matricNumber) throw new Error("User matric number is required for upsert");
   const db = await getDb();
   if (!db) return;
 
-  const values: InsertUser = { openId: user.openId };
+  const values: InsertUser = { openId: user.openId, matricNumber: user.matricNumber };
   const updateSet: Record<string, unknown> = {};
   const textFields = ["name", "email", "loginMethod"] as const;
 
@@ -63,6 +65,18 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result[0];
+}
+
+export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const existing = await getUserByOpenId(input.openId);
+  if (existing) {
+    await db.update(users).set({ email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).where(eq(users.id, existing.id));
+    return { ...existing, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" };
+  }
+  const inserted = await db.insert(users).values({ openId: input.openId, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).$returningId();
+  return getUserById(inserted[0]?.id ?? 0);
 }
 
 export async function getUserById(id: number) {
@@ -194,7 +208,7 @@ export async function listConversations(userId: number) {
 }
 
 export async function listEncryptedMessages(userId: number, conversationId: number) {
-  if (!(await userIsParticipant(userId, conversationId))) throw new Error("Unauthorized conversation access");
+  assertParticipantAccess(true, await userIsParticipant(userId, conversationId), "Unauthorized conversation access");
   const db = await getDb();
   if (!db) return [];
   return db.select().from(encryptedMessages).where(eq(encryptedMessages.conversationId, conversationId)).orderBy(encryptedMessages.createdAt);
@@ -238,7 +252,7 @@ export async function updateMessageStatus(userId: number, messageId: number, sta
   const db = await getDb();
   if (!db) return;
   const message = await db.select().from(encryptedMessages).where(eq(encryptedMessages.id, messageId)).limit(1);
-  if (!message[0] || !(await userIsParticipant(userId, message[0].conversationId))) throw new Error("Unauthorized message access");
+  assertParticipantAccess(Boolean(message[0]), Boolean(message[0] && await userIsParticipant(userId, message[0].conversationId)), "Unauthorized message access");
   const currentStatus = await db.select({ status: messageStatuses.status }).from(messageStatuses)
     .where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId))).limit(1);
   const nextStatus = advanceMessageStatus(currentStatus[0]?.status ?? "sent", status);

@@ -1,0 +1,1 @@
+ALTER TABLE `users` MODIFY COLUMN `matricNumber` varchar(40) NOT NULL;

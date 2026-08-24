@@ -1,7 +1,7 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { appRouter } from "../server/routers";
-import { authenticateLocalRequest } from "../server/localAuth";
+import { authenticateSupabaseRequest } from "../server/supabaseAuth";
 
 function serializeCookie(name: string, value: string, options: Record<string, unknown>) {
   const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
@@ -35,7 +35,7 @@ export default async function handler(req: IncomingMessage & { body?: unknown },
       cookie: (name: string, value: string, options: Record<string, unknown>) => cookies.push(serializeCookie(name, value, options)),
       clearCookie: (name: string, options: Record<string, unknown>) => cookies.push(serializeCookie(name, "", { ...options, maxAge: 0 })),
     },
-    user: await authenticateLocalRequest({ headers: { cookie: fetchRequest.headers.get("cookie") ?? "" } }),
+    user: await authenticateSupabaseRequest(fetchRequest.headers),
   });
   const response = await fetchRequestHandler({ endpoint: "/api/trpc", req: request, router: appRouter, createContext: context as never });
   res.statusCode = response.status;
