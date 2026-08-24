@@ -91,8 +91,9 @@
 - [x] Make useAuth subscribe to Supabase sessions and sign out through Supabase
 - [x] Support Supabase sign-in with either matric number or email as the login identifier
 - [x] Remove obsolete local session implementation and cookie constant after Supabase migration
-- [x] Expose Vercel Supabase NEXT_PUBLIC variables to the Vite browser bundle and verify production registration no longer reports missing configuration
-- [x] Convert the Vercel tRPC entrypoint to a runtime-compatible handler and add explicit error responses
+- [ ] Expose Vercel Supabase NEXT_PUBLIC variables to the Vite browser bundle and verify production registration no longer reports missing configuration
+- [ ] Convert the Vercel tRPC entrypoint to a runtime-compatible handler and add explicit error responses
 - [x] Remove the duplicate top-level Vercel catch-all API route to avoid deployment ambiguity
 - [x] Include Vercel API files in local type-checking
-- [x] Confirm the exact Vercel Supabase public variable names are supported by the client bundle
+- [x] Confirm the exact Vercel Supabase public variable names are supported by the client bundle (sentinel build covers publishable and anon key names)
+- [x] Map Vercel `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_ANON_KEY` into Vite’s client-safe variables without exposing service-role secrets
