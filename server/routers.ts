@@ -1,14 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { clearSessionCookie, createSessionToken, hashPassword, setSessionCookie, verifyPassword } from "./localAuth";
-import { COOKIE_NAME } from "../shared/const";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { signInSupabaseWithMatric } from "./supabaseAuth";
 import {
   createEncryptedMessage,
-  createLocalUser,
   getOrCreateDirectConversation,
-  getUserByMatricNumber,
   listConversations,
   listEncryptedMessages,
   listNotifications,
@@ -20,7 +17,6 @@ import {
 } from "./db";
 
 const matricSchema = z.string().trim().min(4).max(40).transform(value => value.toUpperCase());
-const universityEmailSchema = z.string().trim().email().max(320).transform(value => value.toLowerCase());
 const universityProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.user.matricNumber || !(ctx.user.universityEmail ?? ctx.user.email)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "SecureChat requires a registered student identity." });
@@ -32,25 +28,8 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
-    register: publicProcedure.input(z.object({
-      matricNumber: matricSchema,
-      universityEmail: universityEmailSchema,
-      name: z.string().trim().min(2).max(120),
-      password: z.string().min(8).max(128),
-    })).mutation(async ({ ctx, input }) => {
-      if (await getUserByMatricNumber(input.matricNumber)) throw new TRPCError({ code: "CONFLICT", message: "That matric number is already registered." });
-      const userId = await createLocalUser({ ...input, passwordHash: hashPassword(input.password) });
-      if (!userId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not create account." });
-      setSessionCookie(ctx.res, createSessionToken(userId));
-      return { success: true } as const;
-    }),
-    login: publicProcedure.input(z.object({ matricNumber: matricSchema, password: z.string().min(1).max(128) })).mutation(async ({ ctx, input }) => {
-      const user = await getUserByMatricNumber(input.matricNumber);
-      if (!user?.passwordHash || !verifyPassword(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid matric number or password." });
-      setSessionCookie(ctx.res, createSessionToken(user.id));
-      return { success: true } as const;
-    }),
-    logout: publicProcedure.mutation(({ ctx }) => { clearSessionCookie(ctx.res); return { success: true } as const; }),
+    signInWithMatric: publicProcedure.input(z.object({ matricNumber: matricSchema, password: z.string().min(1).max(128) })).mutation(({ input }) => signInSupabaseWithMatric(input.matricNumber, input.password)),
+    logout: publicProcedure.mutation(() => ({ success: true } as const)),
   }),
   secureChat: router({
     searchUsers: universityProcedure.input(z.object({ query: z.string().max(80).default("") })).query(({ ctx, input }) => searchUsers(ctx.user.id, input.query)),

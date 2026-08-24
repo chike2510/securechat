@@ -66,3 +66,28 @@
 - [ ] Verify the corrected Vercel API response and registration path
 - [ ] Replace `api/trpc/[...path].ts` extensionless re-export with a self-contained Vercel handler
 - [ ] Verify the deployed tRPC endpoint after the wrapper replacement
+- [x] Add GitHub Actions workflow to deploy SecureChat to Vercel on pushes to main
+- [x] Document required Vercel GitHub repository secrets and one-time setup
+- [x] Validate and commit the automatic-deployment workflow to chike2510/securechat
+- [ ] Fix GitHub Actions pnpm setup failure caused by duplicate pnpm version declarations
+- [ ] Re-run the automatic-deployment workflow through dependency installation and Vercel build stages
+- [ ] Fix CI participant-access test failure where unauthorized status update resolves instead of rejecting
+- [ ] Re-run the complete test suite and automatic-deployment workflow after the correction
+- [ ] Diagnose why account creation still returns “SecureChat is temporarily unavailable” after Vercel secrets were added
+- [ ] Verify the latest GitHub Actions run and deployed Vercel commit
+- [ ] Fix and verify the live registration endpoint
+- [ ] Diagnose the backend failure on the successfully redeployed e7ca530 Vercel deployment
+- [ ] Fix account creation without changing the requested matric-number login flow
+- [ ] Verify the live registration endpoint after the backend fix
+- [x] Replace custom local auth with Supabase email/password authentication
+- [x] Keep matric number as a required unique user profile field
+- [x] Add Supabase setup documentation, tests, and deployment environment requirements
+- [x] Update SecureChat to use the Vercel Supabase integration’s public environment variables
+- [x] Ensure service-role credentials are never read by browser code
+- [x] Verify and document the environment-variable mapping before redeployment
+- [x] Add the Supabase-authenticated user profile upsert helper to the database layer
+- [x] Replace AuthLanding registration/login mutations with Supabase Auth calls
+- [x] Send the Supabase access token with protected tRPC requests
+- [x] Make useAuth subscribe to Supabase sessions and sign out through Supabase
+- [x] Support Supabase sign-in with either matric number or email as the login identifier
+- [x] Remove obsolete local session implementation and cookie constant after Supabase migration

@@ -29,10 +29,11 @@ export async function getDb() {
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
+  if (!user.matricNumber) throw new Error("User matric number is required for upsert");
   const db = await getDb();
   if (!db) return;
 
-  const values: InsertUser = { openId: user.openId };
+  const values: InsertUser = { openId: user.openId, matricNumber: user.matricNumber };
   const updateSet: Record<string, unknown> = {};
   const textFields = ["name", "email", "loginMethod"] as const;
 
@@ -64,6 +65,18 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result[0];
+}
+
+export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const existing = await getUserByOpenId(input.openId);
+  if (existing) {
+    await db.update(users).set({ email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).where(eq(users.id, existing.id));
+    return { ...existing, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" };
+  }
+  const inserted = await db.insert(users).values({ openId: input.openId, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).$returningId();
+  return getUserById(inserted[0]?.id ?? 0);
 }
 
 export async function getUserById(id: number) {

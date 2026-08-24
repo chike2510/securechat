@@ -1,35 +1,71 @@
-import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ArrowUpRight, LockKeyhole } from "lucide-react";
+
+function friendlyAuthError(message: string) {
+  if (message.toLowerCase().includes("already registered")) return "That email is already registered. Try signing in.";
+  if (message.toLowerCase().includes("invalid login credentials")) return "Email or password is incorrect.";
+  if (message.toLowerCase().includes("email not confirmed")) return "Confirm your email before signing in.";
+  if (message.toLowerCase().includes("failed to fetch")) return "SecureChat cannot reach the authentication service right now.";
+  return message || "Could not complete that request.";
+}
 
 export default function AuthLanding() {
   const [registering, setRegistering] = useState(false);
   const [matricNumber, setMatricNumber] = useState("");
   const [email, setEmail] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const utils = trpc.useUtils();
-  const loginMutation = trpc.auth.login.useMutation({ onSuccess: () => utils.auth.me.invalidate() });
-  const registerMutation = trpc.auth.register.useMutation({ onSuccess: () => utils.auth.me.invalidate() });
-  const busy = loginMutation.isPending || registerMutation.isPending;
+  const signInWithMatric = trpc.auth.signInWithMatric.useMutation();
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!supabaseConfigured) {
+      toast.error("Authentication is not configured for this deployment yet.");
+      return;
+    }
+    setBusy(true);
     try {
       if (registering) {
-        await registerMutation.mutateAsync({ matricNumber, universityEmail: email, name, password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+          options: { data: { name: name.trim(), matricNumber: matricNumber.trim().toUpperCase() } },
+        });
+        if (error) throw error;
+        if (!data.session) {
+          toast.success("Account created. Check your email to confirm it, then sign in.");
+          setRegistering(false);
+          setPassword("");
+        } else {
+          await utils.auth.me.fetch();
+          toast.success("Account created.");
+          window.location.reload();
+        }
       } else {
-        await loginMutation.mutateAsync({ matricNumber, password });
+        const identifier = loginIdentifier.trim();
+        if (identifier.includes("@")) {
+          const { error } = await supabase.auth.signInWithPassword({ email: identifier.toLowerCase(), password });
+          if (error) throw error;
+        } else {
+          const result = await signInWithMatric.mutateAsync({ matricNumber: identifier, password });
+          if ("error" in result) throw new Error(friendlyAuthError(result.error ?? "Email or password is incorrect."));
+          const { error } = await supabase.auth.setSession(result.session);
+          if (error) throw error;
+        }
+        window.location.reload();
       }
     } catch (error) {
-      const rawMessage = error instanceof Error ? error.message : "";
-      const message = rawMessage.includes("Unexpected token") || rawMessage.includes("JSON")
-        ? "SecureChat is temporarily unavailable. Please try again."
-        : rawMessage || "Could not complete that request.";
-      toast.error(message);
+      toast.error(friendlyAuthError(error instanceof Error ? error.message : ""));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -61,10 +97,14 @@ export default function AuthLanding() {
             {registering && (
               <>
                 <Input required value={name} onChange={event => setName(event.target.value)} placeholder="Name" className="rounded-sm h-11" />
-                <Input required type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Email address" className="rounded-sm h-11" />
+                <Input required value={matricNumber} onChange={event => setMatricNumber(event.target.value)} placeholder="Matric number" className="rounded-sm h-11 font-mono" />
               </>
             )}
-            <Input required value={matricNumber} onChange={event => setMatricNumber(event.target.value)} placeholder="Matric number" className="rounded-sm h-11 font-mono" />
+            {registering ? (
+              <Input required type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Email address" className="rounded-sm h-11" />
+            ) : (
+              <Input required value={loginIdentifier} onChange={event => setLoginIdentifier(event.target.value)} placeholder="Matric number or email" className="rounded-sm h-11" />
+            )}
             <Input required minLength={8} type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password" className="rounded-sm h-11" />
             <Button disabled={busy} className="w-full rounded-sm h-11 bg-[#101722] hover:bg-[#283342]">
               {busy ? "Please wait..." : registering ? "Create account" : "Sign in"}
@@ -75,7 +115,7 @@ export default function AuthLanding() {
           <button type="button" onClick={() => setRegistering(value => !value)} className="w-full mt-5 text-sm text-slate-500 hover:text-[#101722]">
             {registering ? "Already have an account? Sign in" : "Create a new account"}
           </button>
-          <p className="mt-6 pt-4 border-t border-slate-900/10 text-xs text-slate-400">Use your matric number to sign in.</p>
+          <p className="mt-6 pt-4 border-t border-slate-900/10 text-xs text-slate-400">Sign in with your email or matric number.</p>
         </section>
       </div>
     </main>
