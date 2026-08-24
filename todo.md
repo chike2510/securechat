@@ -97,3 +97,4 @@
 - [x] Include Vercel API files in local type-checking
 - [x] Confirm the exact Vercel Supabase public variable names are supported by the client bundle (sentinel build covers publishable and anon key names)
 - [x] Map Vercel `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_ANON_KEY` into Vite’s client-safe variables without exposing service-role secrets
+- [ ] Fix Vercel’s compiled ESM import of `server/routers` from the tRPC function and verify the deployed `auth.me` route

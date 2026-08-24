@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authenticateSupabaseRequest, matricNumberFromSupabaseMetadata } from "./supabaseAuth";
+import { authenticateSupabaseRequest, matricNumberFromSupabaseMetadata } from "./supabaseAuth.js";
 
  describe("Supabase request authentication", () => {
   it("returns no user when a request has no bearer token", async () => {

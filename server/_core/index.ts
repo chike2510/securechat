@@ -4,10 +4,10 @@ import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerStorageProxy } from "./storageProxy";
-import { appRouter } from "../routers";
-import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+import { registerStorageProxy } from "./storageProxy.js";
+import { appRouter } from "../routers.js";
+import { createContext } from "./context.js";
+import { serveStatic, setupVite } from "./vite.js";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {

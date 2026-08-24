@@ -1,6 +1,6 @@
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
-import { appRouter } from "../../server/routers";
-import { authenticateSupabaseRequest } from "../../server/supabaseAuth";
+import { appRouter } from "../../server/routers.js";
+import { authenticateSupabaseRequest } from "../../server/supabaseAuth.js";
 
 export default function handler(req: Parameters<typeof nodeHTTPRequestHandler>[0]["req"], res: Parameters<typeof nodeHTTPRequestHandler>[0]["res"]) {
   const path = (req.url ?? "").split("?")[0].replace(/^\/api\/trpc\/?/, "");

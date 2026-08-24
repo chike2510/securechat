@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertParticipantAccess } from "./accessControl";
+import { assertParticipantAccess } from "./accessControl.js";
 
 describe("SecureChat participant access", () => {
   it("rejects reading a conversation when membership cannot be verified", () => {

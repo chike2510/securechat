@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { signInSupabaseWithMatric } from "./supabaseAuth";
+import { systemRouter } from "./_core/systemRouter.js";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc.js";
+import { signInSupabaseWithMatric } from "./supabaseAuth.js";
 import {
   createEncryptedMessage,
   getOrCreateDirectConversation,
@@ -14,7 +14,7 @@ import {
   setPublicKey,
   setUserPresence,
   updateMessageStatus,
-} from "./db";
+} from "./db.js";
 
 const matricSchema = z.string().trim().min(4).max(40).transform(value => value.toUpperCase());
 const universityProcedure = protectedProcedure.use(({ ctx, next }) => {
