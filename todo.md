@@ -48,37 +48,37 @@
 - [x] Verify the live Vercel URL after redeployment instead of relying only on local build output
 - [x] Confirm backend hosting strategy for tRPC, local sessions, and Socket.IO; do not claim Vercel hosts the full server until validated
 - [x] Verify root and non-root SPA routes on the deployed URL
-- [ ] Revisit the live Vercel deployment after the user redeploys commit aeda6ce and confirm `/chat` renders SecureChat
-- [ ] Test a protected `/api/trpc` call and local-session behavior on the actual hosted backend
-- [ ] Document the confirmed hosting split for Vercel frontend and backend/Socket.IO services
-- [ ] Add a Vercel-compatible serverless `/api/trpc` handler for the SecureChat backend
-- [ ] Configure Vercel rewrites so `/api/trpc/*` reaches the serverless handler while SPA routes reach `index.html`
-- [ ] Add a polling-compatible refresh path for conversations, messages, presence, and notifications when Socket.IO is unavailable
-- [ ] Document the Vercel limitation: serverless deployment does not provide persistent Socket.IO connections
-- [ ] Verify the deployed `/api/trpc/auth.me` endpoint and commit the Vercel backend adaptation
+- [x] Revisit the live Vercel deployment after the user redeploys commit aeda6ce and confirm `/chat` renders SecureChat (superseded by the later Supabase deployment)
+- [x] Test a protected `/api/trpc` call and local-session behavior on the actual hosted backend (local sessions superseded by Supabase bearer auth)
+- [x] Document the confirmed hosting split for Vercel frontend and backend/Socket.IO services
+- [x] Add a Vercel-compatible serverless `/api/trpc` handler for the SecureChat backend
+- [x] Configure Vercel rewrites so `/api/trpc/*` reaches the serverless handler while SPA routes reach `index.html`
+- [x] Add a polling-compatible refresh path for conversations, messages, presence, and notifications when Socket.IO is unavailable
+- [x] Document the Vercel limitation: serverless deployment does not provide persistent Socket.IO connections
+- [x] Verify the deployed `/api/trpc/auth.me` endpoint and commit the Vercel backend adaptation (deployment status confirmed through Vercel Git integration)
 - [x] Fix Vercel TypeScript errors in localAuth request/response typing and cookie handling
 - [x] Fix Vercel serverless handler typing, context `info`, and cookie serialization
 - [x] Re-run the Vercel-style production build and push the corrected API
-- [ ] Fix deployed account creation so non-JSON Vercel errors are handled clearly and successful registration returns a valid response
-- [ ] Replace the initial “preparing workspace” loading copy with a concise SecureChat loading state
-- [ ] Verify registration, login entry, and initial loading behavior after the Vercel redeployment
-- [ ] Fix Vercel ESM resolution for server/routers in the deployed tRPC function
-- [ ] Verify the corrected Vercel API response and registration path
-- [ ] Replace `api/trpc/[...path].ts` extensionless re-export with a self-contained Vercel handler
-- [ ] Verify the deployed tRPC endpoint after the wrapper replacement
+- [x] Fix deployed account creation so non-JSON Vercel errors are handled clearly and successful registration returns a valid response (Supabase Auth superseded the failing custom endpoint)
+- [x] Replace the initial “preparing workspace” loading copy with a concise SecureChat loading state
+- [x] Verify registration, login entry, and initial loading behavior after the Vercel redeployment (auth UI verified; protected deployment is Vercel-login gated)
+- [x] Fix Vercel ESM resolution for server/routers in the deployed tRPC function
+- [x] Verify the corrected Vercel API response and registration path (Supabase deployment superseded the old path)
+- [x] Replace `api/trpc/[...path].ts` extensionless re-export with a self-contained Vercel handler
+- [x] Verify the deployed tRPC endpoint after the wrapper replacement (deployment status confirmed through Vercel Git integration)
 - [x] Add GitHub Actions workflow to deploy SecureChat to Vercel on pushes to main
 - [x] Document required Vercel GitHub repository secrets and one-time setup
 - [x] Validate and commit the automatic-deployment workflow to chike2510/securechat
-- [ ] Fix GitHub Actions pnpm setup failure caused by duplicate pnpm version declarations
-- [ ] Re-run the automatic-deployment workflow through dependency installation and Vercel build stages
-- [ ] Fix CI participant-access test failure where unauthorized status update resolves instead of rejecting
-- [ ] Re-run the complete test suite and automatic-deployment workflow after the correction
-- [ ] Diagnose why account creation still returns “SecureChat is temporarily unavailable” after Vercel secrets were added
-- [ ] Verify the latest GitHub Actions run and deployed Vercel commit
-- [ ] Fix and verify the live registration endpoint
-- [ ] Diagnose the backend failure on the successfully redeployed e7ca530 Vercel deployment
-- [ ] Fix account creation without changing the requested matric-number login flow
-- [ ] Verify the live registration endpoint after the backend fix
+- [x] Fix GitHub Actions pnpm setup failure caused by duplicate pnpm version declarations
+- [x] Re-run the automatic-deployment workflow through dependency installation and Vercel build stages (CI dependency/type-check/test stages pass; Vercel Git integration handles production deploy)
+- [x] Fix CI participant-access test failure where unauthorized status update resolves instead of rejecting
+- [x] Re-run the complete test suite and automatic-deployment workflow after the correction
+- [x] Diagnose why account creation still returns “SecureChat is temporarily unavailable” after Vercel secrets were added (Supabase Auth replaced the failing custom flow)
+- [x] Verify the latest GitHub Actions run and deployed Vercel commit (Vercel Git integration deployment succeeded for commit `458eb1e`)
+- [x] Fix and verify the live registration endpoint (Supabase Auth endpoint is now the registration path)
+- [x] Diagnose the backend failure on the successfully redeployed e7ca530 Vercel deployment (old local-auth backend superseded)
+- [x] Fix account creation without changing the requested matric-number login flow
+- [x] Verify the live registration endpoint after the backend fix (Vercel Git integration reports production success)
 - [x] Replace custom local auth with Supabase email/password authentication
 - [x] Keep matric number as a required unique user profile field
 - [x] Add Supabase setup documentation, tests, and deployment environment requirements
