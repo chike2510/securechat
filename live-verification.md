@@ -14,3 +14,8 @@
 
 - The final client mapping commit `cc90916` deployed successfully at `https://securechat-bezudki07-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
 - After that deployment, the user-facing alias still returned HTTP 500 `FUNCTION_INVOCATION_FAILED` for a valid unauthenticated `auth.me` request. The browser registration flow therefore remains blocked by the hosted API failure, and no successful account submission has been claimed.
+
+- After commit `0dd53fc`, the user-facing alias returned HTTP 200 with valid tRPC JSON for unauthenticated `auth.me`: `[{[0m"result":{"data":{"json":null}}}]` (terminal styling removed in the saved record). This confirms the Vercel ESM module-resolution failure is fixed.
+
+- After commit `8f08d07`, Vercel deployed successfully at `https://securechat-d4givjxlx-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
+- The user-facing alias returned HTTP 200 with valid tRPC JSON for unauthenticated `auth.me`: `[{"result":{"data":{"json":null}}}]`. The compiled ESM import failure is resolved.

@@ -92,10 +92,11 @@
 - [x] Support Supabase sign-in with either matric number or email as the login identifier
 - [x] Remove obsolete local session implementation and cookie constant after Supabase migration
 - [ ] Expose Vercel Supabase NEXT_PUBLIC variables to the Vite browser bundle and verify production registration no longer reports missing configuration
-- [x] Convert the Vercel tRPC entrypoint to a runtime-compatible handler and add explicit error responses
+- [x] Convert the Vercel tRPC entrypoint to a runtime-compatible handler with native tRPC errors and an explicit fallback
 - [x] Remove the duplicate top-level Vercel catch-all API route to avoid deployment ambiguity
 - [x] Include Vercel API files in local type-checking
 - [x] Confirm the exact Vercel Supabase public variable names are supported by the client bundle (sentinel build covers publishable and anon key names)
 - [x] Map Vercel `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_ANON_KEY` into Vite’s client-safe variables without exposing service-role secrets
 - [x] Fix Vercel’s compiled ESM import of `server/routers` from the tRPC function and verify the deployed `auth.me` route
-- [ ] Add an explicit Vercel tRPC error boundary around the native handler and validate its fallback response
+- [x] Add an explicit Vercel tRPC error boundary around the native handler and validate its fallback response
+- [x] Force the Vercel tRPC catch path in a controlled test and verify the 500 JSON fallback response
