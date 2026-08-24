@@ -162,9 +162,19 @@ export default defineConfig({
     },
   },
   envDir: path.resolve(import.meta.dirname),
-  // Vercel's Supabase integration exposes browser-safe values with NEXT_PUBLIC_.
-  // Keep unprefixed SUPABASE_* variables server-only so privileged keys cannot leak.
+  // Vercel integrations may provide public Supabase values with either NEXT_PUBLIC_ or SUPABASE_.
+  // Map only the URL and public/anon key into VITE_ names; never expose service-role variables.
   envPrefix: ["VITE_", "NEXT_PUBLIC_"],
+  define: {
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""),
+    "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+      process.env.SUPABASE_PUBLISHABLE_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+      process.env.SUPABASE_ANON_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      "",
+    ),
+  },
   root: path.resolve(import.meta.dirname, "client"),
   publicDir: path.resolve(import.meta.dirname, "client", "public"),
   build: {
