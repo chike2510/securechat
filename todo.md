@@ -91,3 +91,4 @@
 - [x] Make useAuth subscribe to Supabase sessions and sign out through Supabase
 - [x] Support Supabase sign-in with either matric number or email as the login identifier
 - [x] Remove obsolete local session implementation and cookie constant after Supabase migration
+- [ ] Expose Vercel Supabase NEXT_PUBLIC variables to the Vite browser bundle and verify production registration no longer reports missing configuration
