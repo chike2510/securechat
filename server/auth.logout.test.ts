@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { appRouter } from "./routers";
-import type { TrpcContext } from "./_core/context";
+import { appRouter } from "./routers.js";
+import type { TrpcContext } from "./_core/context.js";
 
 describe("auth.logout", () => {
   it("reports success without managing a local session cookie", async () => {

@@ -8,10 +8,10 @@ import {
   messageStatuses,
   notifications,
   users,
-} from "../drizzle/schema";
-import { ENV } from "./_core/env";
-import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle";
-import { assertParticipantAccess } from "./accessControl";
+} from "../drizzle/schema.js";
+import { ENV } from "./_core/env.js";
+import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle.js";
+import { assertParticipantAccess } from "./accessControl.js";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 

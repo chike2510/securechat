@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle";
+import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle.js";
 
 describe("SecureChat message lifecycle", () => {
   it("advances from sent to delivered to read without regression", () => {

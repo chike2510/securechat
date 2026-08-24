@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { appRouter } from "./routers";
-import { isEncryptedPayload } from "../client/src/lib/crypto";
-import type { TrpcContext } from "./_core/context";
+import { appRouter } from "./routers.js";
+import { isEncryptedPayload } from "../client/src/lib/crypto.js";
+import type { TrpcContext } from "./_core/context.js";
 
 function contextFor(email: string): TrpcContext {
   return {
