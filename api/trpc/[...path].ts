@@ -11,15 +11,23 @@ export async function handleTrpcRequest(req: Parameters<typeof nodeHTTPRequestHa
       res,
       path,
       router: appRouter,
-      createContext: async ({ req: request, res: response }) => ({
-        req: request as never,
-        res: response as never,
-        user: (await authenticateSupabaseRequest(request.headers)) ?? null,
-      }),
+      createContext: async ({ req: request, res: response }) => {
+        let user = null;
+        try {
+          const authorization = request.headers.authorization;
+          const normalizedHeaders = new Headers();
+          if (typeof authorization === "string") normalizedHeaders.set("authorization", authorization);
+          user = (await authenticateSupabaseRequest(normalizedHeaders)) ?? null;
+        } catch (error) {
+          console.error("[Vercel tRPC] Supabase auth lookup failed", error);
+        }
+        return { req: request as never, res: response as never, user };
+      },
     });
   } catch (error) {
     console.error("[Vercel tRPC] invocation failed", error);
-    if (!res.headersSent) {
+    const response = res as typeof res & { writableEnded?: boolean };
+    if (!res.headersSent && !response.writableEnded) {
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ error: "SecureChat API invocation failed." }));

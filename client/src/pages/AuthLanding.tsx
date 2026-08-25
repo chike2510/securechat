@@ -1,10 +1,11 @@
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
+import { isSixDigitOtp, normalizeOtp } from "../../../shared/auth";
 import { toast } from "sonner";
-import { useState } from "react";
-import { ArrowUpRight, LockKeyhole } from "lucide-react";
+import { ArrowUpRight, LockKeyhole, MailCheck } from "lucide-react";
 
 function friendlyAuthError(message: string) {
   if (message.toLowerCase().includes("already registered")) return "That email is already registered. Try signing in.";
@@ -22,8 +23,45 @@ export default function AuthLanding() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [verificationOpen, setVerificationOpen] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
   const utils = trpc.useUtils();
   const signInWithMatric = trpc.auth.signInWithMatric.useMutation();
+
+  const verifyEmailCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: pendingVerificationEmail,
+        token: verificationCode,
+        type: "signup",
+      });
+      if (error) throw error;
+      if (!data.session) throw new Error("That code was accepted, but no SecureChat session was returned.");
+      await utils.auth.me.fetch();
+      toast.success("Email confirmed. Welcome to SecureChat.");
+      window.location.reload();
+    } catch (error) {
+      toast.error(friendlyAuthError(error instanceof Error ? error.message : ""));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendEmailCode = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email: pendingVerificationEmail });
+      if (error) throw error;
+      toast.success("A new confirmation code has been sent.");
+    } catch (error) {
+      toast.error(friendlyAuthError(error instanceof Error ? error.message : ""));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -44,8 +82,9 @@ export default function AuthLanding() {
         });
         if (error) throw error;
         if (!data.session) {
-          toast.success("Account created. Check your email to confirm it, then sign in.");
-          setRegistering(false);
+          setPendingVerificationEmail(email.trim().toLowerCase());
+          setVerificationCode("");
+          setVerificationOpen(true);
           setPassword("");
         } else {
           await utils.auth.me.fetch();
@@ -91,11 +130,26 @@ export default function AuthLanding() {
           <div className="flex items-start justify-between mb-7">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-400">SecureChat</p>
-              <h2 className="text-2xl font-black tracking-tight mt-2">{registering ? "Create your account" : "Welcome back"}</h2>
+              <h2 className="text-2xl font-black tracking-tight mt-2">{verificationOpen ? "Confirm your email" : registering ? "Create your account" : "Welcome back"}</h2>
             </div>
             <LockKeyhole className="h-5 w-5 text-slate-400" />
           </div>
 
+          {verificationOpen ? (
+            <form onSubmit={verifyEmailCode} className="space-y-4">
+              <div className="rounded-sm bg-slate-50 border border-slate-900/10 p-4">
+                <MailCheck className="h-5 w-5 text-[#ff4f87] mb-3" />
+                <p className="text-sm text-slate-700">Enter the 6-digit code sent to <strong>{pendingVerificationEmail}</strong>.</p>
+              </div>
+              <Input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={event => setVerificationCode(normalizeOtp(event.target.value))} placeholder="6-digit confirmation code" className="rounded-sm h-11 font-mono tracking-[0.35em]" />
+              <Button disabled={busy || !isSixDigitOtp(verificationCode)} className="w-full rounded-sm h-11 bg-[#101722] hover:bg-[#283342]">
+                {busy ? "Verifying..." : "Verify email"}
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+              <button type="button" disabled={busy} onClick={resendEmailCode} className="w-full text-sm text-slate-500 hover:text-[#101722]">Resend code</button>
+              <button type="button" disabled={busy} onClick={() => setVerificationOpen(false)} className="w-full text-sm text-slate-400 hover:text-[#101722]">Use a different email</button>
+            </form>
+          ) : (
           <form onSubmit={submit} className="space-y-3.5">
             {registering && (
               <>
@@ -114,11 +168,12 @@ export default function AuthLanding() {
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
+          )}
 
-          <button type="button" onClick={() => setRegistering(value => !value)} className="w-full mt-5 text-sm text-slate-500 hover:text-[#101722]">
+          {!verificationOpen && <button type="button" onClick={() => setRegistering(value => !value)} className="w-full mt-5 text-sm text-slate-500 hover:text-[#101722]">
             {registering ? "Already have an account? Sign in" : "Create a new account"}
-          </button>
-          <p className="mt-6 pt-4 border-t border-slate-900/10 text-xs text-slate-400">Sign in with your email or matric number.</p>
+          </button>}
+          {!verificationOpen && <p className="mt-6 pt-4 border-t border-slate-900/10 text-xs text-slate-400">Sign in with your email or matric number.</p>}
         </section>
       </div>
     </main>

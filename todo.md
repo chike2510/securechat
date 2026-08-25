@@ -109,3 +109,10 @@
 - [x] Document the Supabase Auth email-template and sender-branding steps for SecureChat
 - [x] Verify the deployed confirmation destination and redirect configuration return users to SecureChat’s `/auth/confirmed` page
 - [x] Add a dedicated SecureChat email-confirmed landing route and point Supabase confirmation links to it
+- [x] Add an actual email OTP verification state after Supabase registration
+- [x] Verify the submitted OTP with Supabase and allow resend without exposing credentials
+- [x] Replace the misleading registration success message with clear OTP states and errors
+- [x] Diagnose and fix the deployed `auth.me` 500 shown in Vercel logs
+- [x] Add tests for OTP state handling and the auth.me failure boundary
+- [ ] Deploy the latest OTP/auth.me changes and verify repeated unauthenticated production auth.me requests return HTTP 200
+- [x] Add component-level coverage for registration-to-OTP transition, six-digit validation, resend, and verification errors
