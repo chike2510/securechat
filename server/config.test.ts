@@ -15,4 +15,14 @@ describe("public Supabase runtime config", () => {
     });
     expect(JSON.stringify(config)).not.toContain("must-not-be-returned");
   });
+
+  it("supports the storage-prefixed Supabase integration names", () => {
+    expect(getPublicSupabaseConfig({
+      STORAGE_SUPABASE_URL: "https://storage.example.supabase.co",
+      STORAGE_SUPABASE_ANON_KEY: "storage-anon-key",
+    })).toEqual({
+      supabaseUrl: "https://storage.example.supabase.co",
+      supabasePublishableKey: "storage-anon-key",
+    });
+  });
 });

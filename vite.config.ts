@@ -166,12 +166,14 @@ export default defineConfig({
   // Map only the URL and public/anon key into VITE_ names; never expose service-role variables.
   envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   define: {
-    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""),
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.STORAGE_SUPABASE_URL ?? ""),
     "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
       process.env.SUPABASE_PUBLISHABLE_KEY ??
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
       process.env.SUPABASE_ANON_KEY ??
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      process.env.STORAGE_SUPABASE_PUBLISHABLE_KEY ??
+      process.env.STORAGE_SUPABASE_ANON_KEY ??
       "",
     ),
   },
