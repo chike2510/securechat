@@ -116,3 +116,4 @@
 - [x] Add tests for OTP state handling and the auth.me failure boundary
 - [x] Deploy the latest OTP/auth.me changes and verify repeated unauthenticated production auth.me requests return HTTP 200
 - [x] Add component-level coverage for registration-to-OTP transition, six-digit validation, resend, and verification errors
+- [x] Remove the Supabase expiry implementation detail from the confirmation email template copy
