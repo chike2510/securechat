@@ -8,6 +8,9 @@ type VercelResponse = {
 type PublicConfigEnv = {
   NEXT_PUBLIC_SUPABASE_URL?: string;
   SUPABASE_URL?: string;
+  STORAGE_SUPABASE_URL?: string;
+  STORAGE_SUPABASE_PUBLISHABLE_KEY?: string;
+  STORAGE_SUPABASE_ANON_KEY?: string;
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
   NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
@@ -16,12 +19,14 @@ type PublicConfigEnv = {
 
 export function getPublicSupabaseConfig(env: PublicConfigEnv = process.env as PublicConfigEnv) {
   return {
-    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL ?? "",
+    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL ?? env.STORAGE_SUPABASE_URL ?? "",
     supabasePublishableKey:
       env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
       env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
       env.SUPABASE_PUBLISHABLE_KEY ??
       env.SUPABASE_ANON_KEY ??
+      env.STORAGE_SUPABASE_PUBLISHABLE_KEY ??
+      env.STORAGE_SUPABASE_ANON_KEY ??
       "",
   };
 }
