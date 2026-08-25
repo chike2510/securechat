@@ -10,7 +10,11 @@ In the Supabase dashboard, open **Authentication → URL Configuration** and set
 https://securechat-peach-two.vercel.app
 ```
 
-Add the same URL under **Redirect URLs**. Keep the local development URL only if local testing is still needed.
+Add this URL under **Redirect URLs**:
+
+```text
+https://securechat-peach-two.vercel.app/auth/confirmed
+``` Keep the local development URL only if local testing is still needed.
 
 ## SecureChat email branding
 
@@ -33,4 +37,4 @@ In **Project Settings → General**, set the project name to **SecureChat** wher
 
 ## Confirmation behavior
 
-After a new registration, the user should receive the branded confirmation email, open the confirmation link, return to SecureChat, and then sign in with either their email address or matric number. The redirect URL must be added to Supabase before testing a fresh registration.
+After a new registration, the user should receive the branded confirmation email, open the confirmation link, land on SecureChat’s `/auth/confirmed` page, and then sign in with either their email address or matric number. The redirect URL must be added to Supabase before testing a fresh registration.

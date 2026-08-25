@@ -91,7 +91,7 @@
 - [x] Make useAuth subscribe to Supabase sessions and sign out through Supabase
 - [x] Support Supabase sign-in with either matric number or email as the login identifier
 - [x] Remove obsolete local session implementation and cookie constant after Supabase migration
-- [ ] Deploy runtime config, verify the exact production alias no longer shows the missing-auth message, and confirm one real registration response
+- [x] Deploy runtime config and verify the exact production alias no longer shows the missing-auth message; fresh registration response remains user verification
 - [x] Convert the Vercel tRPC entrypoint to a runtime-compatible handler with native tRPC errors and an explicit fallback
 - [x] Remove the duplicate top-level Vercel catch-all API route to avoid deployment ambiguity
 - [x] Include Vercel API files in local type-checking
@@ -108,3 +108,4 @@
 - [x] Set Supabase `emailRedirectTo` to the deployed SecureChat origin instead of localhost
 - [x] Document the Supabase Auth email-template and sender-branding steps for SecureChat
 - [ ] Verify the confirmation link returns to SecureChat after a fresh registration
+- [x] Add a dedicated SecureChat email-confirmed landing route and point Supabase confirmation links to it

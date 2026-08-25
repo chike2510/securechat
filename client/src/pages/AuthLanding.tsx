@@ -38,7 +38,7 @@ export default function AuthLanding() {
           email: email.trim().toLowerCase(),
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}/auth/confirmed`,
             data: { name: name.trim(), matricNumber: matricNumber.trim().toUpperCase() },
           },
         });
