@@ -107,5 +107,5 @@
 - [x] Support the `supabase-blue-arrow` `STORAGE_SUPABASE_URL` and public anon/publishable key variables without exposing `STORAGE_SUPABASE_SECRET_KEY`
 - [x] Set Supabase `emailRedirectTo` to the deployed SecureChat origin instead of localhost
 - [x] Document the Supabase Auth email-template and sender-branding steps for SecureChat
-- [ ] Verify the confirmation link returns to SecureChat after a fresh registration
+- [ ] Verify the confirmation link returns to SecureChat after a fresh registration (destination route is deployed and verified; fresh email click remains user-side)
 - [x] Add a dedicated SecureChat email-confirmed landing route and point Supabase confirmation links to it

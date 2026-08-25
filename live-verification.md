@@ -28,3 +28,6 @@
 
 - Deployment `9862e675...` completed successfully and the public alias now serves JavaScript containing the deployed-origin confirmation redirect logic.
 - The live page renders the normal SecureChat sign-in screen. The remaining confirmation-link test requires a fresh registration email; no further Supabase integration setup is needed from the code side.
+
+- Deployment `24759db` completed successfully. The production route `https://securechat-peach-two.vercel.app/auth/confirmed` renders SecureChat’s dedicated “Email confirmed — You’re ready to sign in” page with a link back to the app.
+- A fresh confirmation email click-through is still not independently exercised because it requires creating another account and opening the email; the deployed destination itself is verified.
