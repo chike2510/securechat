@@ -25,3 +25,6 @@
 
 - After commit `d4748c2`, Vercel deployed successfully at `https://securechat-6vrij6lvm-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
 - On the public `securechat-peach-two.vercel.app` alias, `/api/config` returned the connected Supabase URL and a publishable key using the `STORAGE_SUPABASE_*` fallback. The page now renders the normal SecureChat sign-in form instead of the runtime setup failure screen.
+
+- Deployment `9862e675...` completed successfully and the public alias now serves JavaScript containing the deployed-origin confirmation redirect logic.
+- The live page renders the normal SecureChat sign-in screen. The remaining confirmation-link test requires a fresh registration email; no further Supabase integration setup is needed from the code side.
