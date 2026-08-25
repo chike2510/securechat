@@ -105,3 +105,6 @@
 - [x] Initialize the browser Supabase client from runtime configuration and cover the loading/error states
 - [x] Trace why the connected Supabase integration values are absent from the deployed Vercel function without requesting new credentials from the user
 - [x] Support the `supabase-blue-arrow` `STORAGE_SUPABASE_URL` and public anon/publishable key variables without exposing `STORAGE_SUPABASE_SECRET_KEY`
+- [x] Set Supabase `emailRedirectTo` to the deployed SecureChat origin instead of localhost
+- [x] Document the Supabase Auth email-template and sender-branding steps for SecureChat
+- [ ] Verify the confirmation link returns to SecureChat after a fresh registration

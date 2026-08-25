@@ -22,3 +22,6 @@
 
 - After commit `41a834e`, Vercel deployed successfully at `https://securechat-owt1bxjod-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
 - The user-facing alias returned HTTP 200 with valid tRPC JSON for unauthenticated `auth.me`: `[{"result":{"data":{"json":null}}}]`. The final production serverless path is healthy.
+
+- After commit `d4748c2`, Vercel deployed successfully at `https://securechat-6vrij6lvm-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
+- On the public `securechat-peach-two.vercel.app` alias, `/api/config` returned the connected Supabase URL and a publishable key using the `STORAGE_SUPABASE_*` fallback. The page now renders the normal SecureChat sign-in form instead of the runtime setup failure screen.

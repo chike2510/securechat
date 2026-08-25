@@ -37,7 +37,10 @@ export default function AuthLanding() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
-          options: { data: { name: name.trim(), matricNumber: matricNumber.trim().toUpperCase() } },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { name: name.trim(), matricNumber: matricNumber.trim().toUpperCase() },
+          },
         });
         if (error) throw error;
         if (!data.session) {
