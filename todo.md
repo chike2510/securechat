@@ -114,5 +114,5 @@
 - [x] Replace the misleading registration success message with clear OTP states and errors
 - [x] Diagnose and fix the deployed `auth.me` 500 shown in Vercel logs
 - [x] Add tests for OTP state handling and the auth.me failure boundary
-- [ ] Deploy the latest OTP/auth.me changes and verify repeated unauthenticated production auth.me requests return HTTP 200
+- [x] Deploy the latest OTP/auth.me changes and verify repeated unauthenticated production auth.me requests return HTTP 200
 - [x] Add component-level coverage for registration-to-OTP transition, six-digit validation, resend, and verification errors

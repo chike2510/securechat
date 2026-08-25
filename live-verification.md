@@ -15,7 +15,7 @@
 - The final client mapping commit `cc90916` deployed successfully at `https://securechat-bezudki07-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
 - After that deployment, the user-facing alias still returned HTTP 500 `FUNCTION_INVOCATION_FAILED` for a valid unauthenticated `auth.me` request. The browser registration flow therefore remains blocked by the hosted API failure, and no successful account submission has been claimed.
 
-- After commit `0dd53fc`, the user-facing alias returned HTTP 200 with valid tRPC JSON for unauthenticated `auth.me`: `[{[0m"result":{"data":{"json":null}}}]` (terminal styling removed in the saved record). This confirms the Vercel ESM module-resolution failure is fixed.
+- After commit `0dd53fc`, the user-facing alias returned HTTP 200 with valid tRPC JSON for unauthenticated `auth.me`: `[{"result":{"data":{"json":null}}}]` (terminal styling removed in the saved record). This confirms the Vercel ESM module-resolution failure is fixed.
 
 - After commit `8f08d07`, Vercel deployed successfully at `https://securechat-d4givjxlx-chikeziri-emmanuel-onovo-s-projects.vercel.app`.
 - The user-facing alias returned HTTP 200 with valid tRPC JSON for unauthenticated `auth.me`: `[{"result":{"data":{"json":null}}}]`. The compiled ESM import failure is resolved.
@@ -31,3 +31,6 @@
 
 - Deployment `24759db` completed successfully. The production route `https://securechat-peach-two.vercel.app/auth/confirmed` renders SecureChat’s dedicated “Email confirmed — You’re ready to sign in” page with a link back to the app.
 - A fresh confirmation email click-through is still not independently exercised because it requires creating another account and opening the email; the deployed destination itself is verified.
+
+- After the OTP/auth.me checkpoint was pushed to GitHub main at commit `abe3352`, the public alias rendered the normal SecureChat sign-in form after the bootstrap completed. The production browser showed the registration entry button, not the old static success state.
+- After commit `abe3352`, five consecutive unauthenticated requests to `https://securechat-peach-two.vercel.app/api/trpc/auth.me?batch=1&input=%7B%7D` each returned HTTP 200, `application/json`, and `[ {"result":{"data":{"json":null}}} ]` with whitespace removed in the raw response. No intermittent 500 occurred in this check.
