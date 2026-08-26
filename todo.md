@@ -118,3 +118,7 @@
 - [x] Add component-level coverage for registration-to-OTP transition, six-digit validation, resend, and verification errors
 - [x] Remove the Supabase expiry implementation detail from the confirmation email template copy
 - [x] Align SecureChat OTP input and copy with the eight-digit Supabase token delivered by the configured email template
+- [x] Prevent the post-OTP session-hydration race that returns verified users to the login screen
+- [ ] Verify post-OTP success end to end: verified user stays authenticated and chat opens
+- [x] Add integration coverage for successful OTP verification through the auth bootstrap and Home auth gate
+- [ ] Deploy the session-hydration fix and confirm the production alias no longer bounces verified users to login

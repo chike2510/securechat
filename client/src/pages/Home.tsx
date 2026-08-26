@@ -1,3 +1,4 @@
+import React from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AuthLanding from "@/pages/AuthLanding";
 import { trpc } from "@/lib/trpc";

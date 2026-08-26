@@ -40,9 +40,8 @@ export default function AuthLanding() {
       });
       if (error) throw error;
       if (!data.session) throw new Error("That code was accepted, but no SecureChat session was returned.");
-      await utils.auth.me.fetch();
+      await utils.auth.me.invalidate();
       toast.success("Email confirmed. Welcome to SecureChat.");
-      window.location.reload();
     } catch (error) {
       toast.error(friendlyAuthError(error instanceof Error ? error.message : ""));
     } finally {
@@ -87,9 +86,8 @@ export default function AuthLanding() {
           setVerificationOpen(true);
           setPassword("");
         } else {
-          await utils.auth.me.fetch();
+          await utils.auth.me.invalidate();
           toast.success("Account created.");
-          window.location.reload();
         }
       } else {
         const identifier = loginIdentifier.trim();

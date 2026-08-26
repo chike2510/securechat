@@ -7,7 +7,7 @@ const authMocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   verifyOtp: vi.fn(),
   resend: vi.fn(),
-  meFetch: vi.fn(),
+  meInvalidate: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -19,7 +19,7 @@ vi.mock("@/lib/supabase", () => ({
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ auth: { me: { fetch: authMocks.meFetch } } }),
+    useUtils: () => ({ auth: { me: { invalidate: authMocks.meInvalidate } } }),
     auth: { signInWithMatric: { useMutation: () => ({ mutateAsync: vi.fn() }) } },
   },
 }));
@@ -85,5 +85,17 @@ describe("AuthLanding email OTP flow", () => {
 
     await waitFor(() => expect(authMocks.toastError).toHaveBeenCalledWith("Invalid token"));
     expect(authMocks.verifyOtp).toHaveBeenCalledWith({ email: "ada@example.com", token: "12345678", type: "signup" });
+  });
+
+  it("hands a verified session back to auth.me without reloading the page", async () => {
+    authMocks.verifyOtp.mockResolvedValueOnce({ data: { session: { access_token: "access", refresh_token: "refresh" } }, error: null });
+    render(<AuthLanding />);
+    completeRegistrationForm();
+    await screen.findByText("Confirm your email");
+    fireEvent.change(screen.getByPlaceholderText("8-digit confirmation code"), { target: { value: "12345678" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
+
+    await waitFor(() => expect(authMocks.meInvalidate).toHaveBeenCalledOnce());
+    expect(authMocks.toastSuccess).toHaveBeenCalledWith("Email confirmed. Welcome to SecureChat.");
   });
 });
