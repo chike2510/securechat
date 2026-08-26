@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(database.status === "failed" ? 503 : 200).setHeader("Cache-Control", "no-store").json({ database });
   } catch {
     return res.status(503).setHeader("Cache-Control", "no-store").json({
-      database: { configured: true, driver: "storage-postgres", status: "failed", failureCategory: "unknown" },
+      database: { configured: true, driver: "storage-postgres", source: null, status: "failed", failureCategory: "unknown" },
     });
   }
 }

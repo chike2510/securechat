@@ -21,14 +21,23 @@ type DatabaseEnv = {
   STORAGE_POSTGRES_URL?: string;
 };
 
-export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv) {
+type DatabaseSource = "storage-postgres-prisma" | "storage-postgres-non-pooling" | "storage-postgres" | "database-url";
+
+export function resolveDatabaseConnection(env: DatabaseEnv = process.env as DatabaseEnv): { source: DatabaseSource; url: string } | null {
   const candidates = [
-    env.STORAGE_POSTGRES_URL_NON_POOLING,
-    env.STORAGE_POSTGRES_PRISMA_URL,
-    env.STORAGE_POSTGRES_URL,
-    env.DATABASE_URL,
+    { source: "storage-postgres-prisma" as const, url: env.STORAGE_POSTGRES_PRISMA_URL },
+    { source: "storage-postgres-non-pooling" as const, url: env.STORAGE_POSTGRES_URL_NON_POOLING },
+    { source: "storage-postgres" as const, url: env.STORAGE_POSTGRES_URL },
+    { source: "database-url" as const, url: env.DATABASE_URL },
   ];
-  return candidates.find((value) => value?.startsWith("postgres")) ?? "";
+  const selected = candidates.find((candidate): candidate is { source: DatabaseSource; url: string } =>
+    typeof candidate.url === "string" && candidate.url.startsWith("postgres"),
+  );
+  return selected ?? null;
+}
+
+export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv) {
+  return resolveDatabaseConnection(env)?.url ?? "";
 }
 
 let _pool: Pool | null = null;
@@ -55,6 +64,7 @@ export async function getDatabaseReadiness() {
   return {
     configured: Boolean(resolveDatabaseUrl()),
     driver: "storage-postgres" as const,
+    source: resolveDatabaseConnection()?.source ?? null,
     status: _databaseReadiness,
     failureCategory: _databaseFailureCategory,
   };
@@ -129,16 +139,16 @@ async function ensureStoragePostgresSchema(db: NonNullable<typeof _db>) {
 }
 
 export async function getDb() {
-  const connectionString = resolveDatabaseUrl();
-  if (!connectionString) {
+  const connection = resolveDatabaseConnection();
+  if (!connection) {
     _databaseReadiness = "unconfigured";
     return null;
   }
-  if (!_db && connectionString) {
+  if (!_db) {
     try {
       _databaseReadiness = "initializing";
       _pool = new Pool({
-        connectionString,
+        connectionString: connection.url,
         max: 1,
       });
       _db = drizzle(_pool);
