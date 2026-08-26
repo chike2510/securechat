@@ -127,3 +127,4 @@
 - [x] Test the supplied production account and capture the exact login/OTP redirect failure
 - [ ] Remove the supplied credential from the working conversation context after testing and advise a password change
 - [ ] Deploy the verifier environment fallback and retest the authorized account’s authenticated auth.me response
+- [x] Fix `/api/config` so Vite-prefixed Supabase URL and public-key variables load the deployed auth screen
