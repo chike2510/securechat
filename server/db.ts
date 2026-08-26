@@ -1,5 +1,6 @@
-import { and, desc, eq, ne } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import {
   conversationParticipants,
   conversations,
@@ -13,17 +14,118 @@ import { ENV } from "./_core/env.js";
 import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle.js";
 import { assertParticipantAccess } from "./accessControl.js";
 
+type DatabaseEnv = {
+  DATABASE_URL?: string;
+  STORAGE_POSTGRES_URL_NON_POOLING?: string;
+  STORAGE_POSTGRES_PRISMA_URL?: string;
+  STORAGE_POSTGRES_URL?: string;
+};
+
+export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv) {
+  const candidates = [
+    env.STORAGE_POSTGRES_URL_NON_POOLING,
+    env.STORAGE_POSTGRES_PRISMA_URL,
+    env.STORAGE_POSTGRES_URL,
+    env.DATABASE_URL,
+  ];
+  return candidates.find((value) => value?.startsWith("postgres")) ?? "";
+}
+
+let _pool: Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
+let _schemaReady: Promise<void> | null = null;
+
+export const storagePostgresSchemaStatements = [
+  `CREATE TABLE IF NOT EXISTS "users" (
+    "id" serial PRIMARY KEY,
+    "openId" varchar(64) NOT NULL UNIQUE,
+    "name" text,
+    "email" varchar(320),
+    "universityEmail" varchar(320) UNIQUE,
+    "matricNumber" varchar(40) NOT NULL UNIQUE,
+    "passwordHash" text,
+    "loginMethod" varchar(64),
+    "role" varchar(16) NOT NULL DEFAULT 'user',
+    "publicKey" text,
+    "lastSeenAt" timestamp,
+    "isOnline" boolean NOT NULL DEFAULT false,
+    "createdAt" timestamp NOT NULL DEFAULT now(),
+    "updatedAt" timestamp NOT NULL DEFAULT now(),
+    "lastSignedIn" timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS "conversations" (
+    "id" serial PRIMARY KEY,
+    "createdAt" timestamp NOT NULL DEFAULT now(),
+    "updatedAt" timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS "conversationParticipants" (
+    "id" serial PRIMARY KEY,
+    "conversationId" integer NOT NULL,
+    "userId" integer NOT NULL,
+    "joinedAt" timestamp NOT NULL DEFAULT now(),
+    "lastReadAt" timestamp,
+    CONSTRAINT "conversation_participant_unique" UNIQUE ("conversationId", "userId")
+  )`,
+  `CREATE TABLE IF NOT EXISTS "encryptedMessages" (
+    "id" serial PRIMARY KEY,
+    "conversationId" integer NOT NULL,
+    "senderId" integer NOT NULL,
+    "ciphertext" text NOT NULL,
+    "iv" varchar(128) NOT NULL,
+    "keyVersion" varchar(64) NOT NULL DEFAULT 'v1',
+    "createdAt" timestamp NOT NULL DEFAULT now(),
+    "deliveredAt" timestamp,
+    "readAt" timestamp
+  )`,
+  `CREATE TABLE IF NOT EXISTS "messageStatuses" (
+    "id" serial PRIMARY KEY,
+    "messageId" integer NOT NULL,
+    "userId" integer NOT NULL,
+    "status" varchar(16) NOT NULL DEFAULT 'sent',
+    "updatedAt" timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT "message_status_user_unique" UNIQUE ("messageId", "userId")
+  )`,
+  `CREATE TABLE IF NOT EXISTS "notifications" (
+    "id" serial PRIMARY KEY,
+    "userId" integer NOT NULL,
+    "type" varchar(32) NOT NULL,
+    "title" varchar(160) NOT NULL,
+    "body" text NOT NULL,
+    "conversationId" integer,
+    "isRead" boolean NOT NULL DEFAULT false,
+    "createdAt" timestamp NOT NULL DEFAULT now()
+  )`,
+] as const;
+
+async function ensureStoragePostgresSchema(db: NonNullable<typeof _db>) {
+  for (const statement of storagePostgresSchemaStatements) {
+    await db.execute(sql.raw(statement));
+  }
+}
 
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  const connectionString = resolveDatabaseUrl();
+  if (!_db && connectionString) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _pool = new Pool({
+        connectionString,
+        max: 1,
+      });
+      _db = drizzle(_pool);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to initialize Storage Postgres", error);
+      _pool = null;
       _db = null;
     }
   }
+  if (_db && !_schemaReady) {
+    _schemaReady = ensureStoragePostgresSchema(_db).catch((error) => {
+      _schemaReady = null;
+      console.error("[Database] Storage Postgres schema initialization failed", error);
+      throw error;
+    });
+  }
+  if (_schemaReady) await _schemaReady;
   return _db;
 }
 
@@ -34,7 +136,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!db) return;
 
   const values: InsertUser = { openId: user.openId, matricNumber: user.matricNumber };
-  const updateSet: Record<string, unknown> = {};
+  const updateSet: Partial<InsertUser> = { updatedAt: new Date() };
   const textFields = ["name", "email", "loginMethod"] as const;
 
   for (const field of textFields) {
@@ -55,9 +157,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     updateSet.role = "admin";
   }
   if (!values.lastSignedIn) values.lastSignedIn = new Date();
-  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
 
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -73,7 +174,7 @@ export function selectSupabaseProfile<T>(byOpenId: T | undefined, byMatricNumber
 
 export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
   const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
+  if (!db) throw new Error("Database unavailable: no Postgres connection string was provided.");
   const existing = selectSupabaseProfile(
     await getUserByOpenId(input.openId),
     await getUserByMatricNumber(input.matricNumber),
@@ -87,6 +188,7 @@ export async function getOrCreateSupabaseUser(input: { openId: string; email: st
       name: input.name,
       matricNumber: input.matricNumber,
       loginMethod: "supabase-email",
+      updatedAt: new Date(),
     }).where(eq(users.id, existing.id));
     return {
       ...existing,
@@ -96,9 +198,17 @@ export async function getOrCreateSupabaseUser(input: { openId: string; email: st
       name: input.name,
       matricNumber: input.matricNumber,
       loginMethod: "supabase-email",
+      updatedAt: new Date(),
     };
   }
-  const inserted = await db.insert(users).values({ openId: input.openId, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).$returningId();
+  const inserted = await db.insert(users).values({
+    openId: input.openId,
+    email: input.email,
+    universityEmail: input.email,
+    name: input.name,
+    matricNumber: input.matricNumber,
+    loginMethod: "supabase-email",
+  }).returning({ id: users.id });
   return getUserById(inserted[0]?.id ?? 0);
 }
 
@@ -141,7 +251,7 @@ export async function createLocalUser(input: { matricNumber: string; universityE
     name: input.name,
     passwordHash: input.passwordHash,
     loginMethod: "matric-password",
-  }).$returningId();
+  }).returning({ id: users.id });
   return inserted[0]?.id;
 }
 
@@ -164,8 +274,8 @@ export async function setUserPresence(userId: number, online: boolean) {
   const db = await getDb();
   if (!db) return;
   const previous = await db.select({ isOnline: users.isOnline, name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
-  await db.update(users).set({ isOnline: online ? 1 : 0, lastSeenAt: new Date() }).where(eq(users.id, userId));
-  if (online && previous[0]?.isOnline === 0) {
+  await db.update(users).set({ isOnline: online, lastSeenAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+  if (online && previous[0]?.isOnline === false) {
     const memberships = await db.select({ conversationId: conversationParticipants.conversationId })
       .from(conversationParticipants).where(eq(conversationParticipants.userId, userId));
     for (const membership of memberships) {
@@ -187,7 +297,7 @@ export async function setUserPresence(userId: number, online: boolean) {
 export async function setPublicKey(userId: number, publicKey: string) {
   const db = await getDb();
   if (!db) return;
-  await db.update(users).set({ publicKey }).where(eq(users.id, userId));
+  await db.update(users).set({ publicKey, updatedAt: new Date() }).where(eq(users.id, userId));
 }
 
 export async function userIsParticipant(userId: number, conversationId: number) {
@@ -210,7 +320,7 @@ export async function getOrCreateDirectConversation(userId: number, otherUserId:
       .from(conversationParticipants).where(eq(conversationParticipants.conversationId, candidate.conversationId));
     if (members.length === 2 && members.some(m => m.userId === otherUserId)) return candidate.conversationId;
   }
-  const created = await db.insert(conversations).values({}).$returningId();
+  const created = await db.insert(conversations).values({}).returning({ id: conversations.id });
   const conversationId = created[0]?.id;
   if (!conversationId) throw new Error("Could not create conversation");
   await db.insert(conversationParticipants).values([
@@ -260,7 +370,7 @@ export async function createEncryptedMessage(input: {
     ciphertext: input.ciphertext,
     iv: input.iv,
     keyVersion: input.keyVersion ?? "v1",
-  }).$returningId();
+  }).returning({ id: encryptedMessages.id });
   const messageId = inserted[0]?.id;
   if (!messageId) throw new Error("Could not create message");
   await db.insert(messageStatuses).values({ messageId, userId: input.userId, status: "sent" });
@@ -286,7 +396,7 @@ export async function updateMessageStatus(userId: number, messageId: number, sta
   const currentStatus = await db.select({ status: messageStatuses.status }).from(messageStatuses)
     .where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId))).limit(1);
   const nextStatus = advanceMessageStatus(currentStatus[0]?.status ?? "sent", status);
-  await db.update(messageStatuses).set({ status: nextStatus }).where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId)));
+  await db.update(messageStatuses).set({ status: nextStatus, updatedAt: new Date() }).where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId)));
   if (nextStatus === "delivered") await db.update(encryptedMessages).set({ deliveredAt: new Date() }).where(eq(encryptedMessages.id, messageId));
   if (nextStatus === "read") await db.update(encryptedMessages).set({ deliveredAt: new Date(), readAt: new Date() }).where(eq(encryptedMessages.id, messageId));
 }
@@ -300,5 +410,5 @@ export async function listNotifications(userId: number) {
 export async function markNotificationRead(userId: number, notificationId: number) {
   const db = await getDb();
   if (!db) return;
-  await db.update(notifications).set({ isRead: 1 }).where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+  await db.update(notifications).set({ isRead: true }).where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
 }

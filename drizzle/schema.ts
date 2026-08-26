@@ -1,7 +1,7 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, unique } from "drizzle-orm/mysql-core";
+import { boolean, integer, pgTable, serial, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -9,35 +9,35 @@ export const users = mysqlTable("users", {
   matricNumber: varchar("matricNumber", { length: 40 }).notNull().unique(),
   passwordHash: text("passwordHash"),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: varchar("role", { length: 16, enum: ["user", "admin"] }).default("user").notNull(),
   publicKey: text("publicKey"),
-  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
-  isOnline: int("isOnline").default(0).notNull(),
+  lastSeenAt: timestamp("lastSeenAt"),
+  isOnline: boolean("isOnline").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
-export const conversations = mysqlTable("conversations", {
-  id: int("id").autoincrement().primaryKey(),
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
-export const conversationParticipants = mysqlTable("conversationParticipants", {
-  id: int("id").autoincrement().primaryKey(),
-  conversationId: int("conversationId").notNull(),
-  userId: int("userId").notNull(),
+export const conversationParticipants = pgTable("conversationParticipants", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversationId").notNull(),
+  userId: integer("userId").notNull(),
   joinedAt: timestamp("joinedAt").defaultNow().notNull(),
   lastReadAt: timestamp("lastReadAt"),
 }, (table) => ({
   participantUnique: unique("conversation_participant_unique").on(table.conversationId, table.userId),
 }));
 
-export const encryptedMessages = mysqlTable("encryptedMessages", {
-  id: int("id").autoincrement().primaryKey(),
-  conversationId: int("conversationId").notNull(),
-  senderId: int("senderId").notNull(),
+export const encryptedMessages = pgTable("encryptedMessages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversationId").notNull(),
+  senderId: integer("senderId").notNull(),
   ciphertext: text("ciphertext").notNull(),
   iv: varchar("iv", { length: 128 }).notNull(),
   keyVersion: varchar("keyVersion", { length: 64 }).default("v1").notNull(),
@@ -46,24 +46,24 @@ export const encryptedMessages = mysqlTable("encryptedMessages", {
   readAt: timestamp("readAt"),
 });
 
-export const messageStatuses = mysqlTable("messageStatuses", {
-  id: int("id").autoincrement().primaryKey(),
-  messageId: int("messageId").notNull(),
-  userId: int("userId").notNull(),
-  status: mysqlEnum("status", ["sent", "delivered", "read"]).default("sent").notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+export const messageStatuses = pgTable("messageStatuses", {
+  id: serial("id").primaryKey(),
+  messageId: integer("messageId").notNull(),
+  userId: integer("userId").notNull(),
+  status: varchar("status", { length: 16, enum: ["sent", "delivered", "read"] }).default("sent").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 }, (table) => ({
   messageUserUnique: unique("message_status_user_unique").on(table.messageId, table.userId),
 }));
 
-export const notifications = mysqlTable("notifications", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  type: mysqlEnum("type", ["new_message", "recipient_returned"]).notNull(),
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  type: varchar("type", { length: 32, enum: ["new_message", "recipient_returned"] }).notNull(),
   title: varchar("title", { length: 160 }).notNull(),
   body: text("body").notNull(),
-  conversationId: int("conversationId"),
-  isRead: int("isRead").default(0).notNull(),
+  conversationId: integer("conversationId"),
+  isRead: boolean("isRead").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
