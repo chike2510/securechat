@@ -126,3 +126,4 @@
 - [ ] Verify the final OTP-to-chat path with a real production session before closing the auth bug
 - [x] Test the supplied production account and capture the exact login/OTP redirect failure
 - [ ] Remove the supplied credential from the working conversation context after testing and advise a password change
+- [ ] Deploy the verifier environment fallback and retest the authorized account’s authenticated auth.me response
