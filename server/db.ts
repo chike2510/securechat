@@ -67,13 +67,36 @@ export async function getUserByOpenId(openId: string) {
   return result[0];
 }
 
+export function selectSupabaseProfile<T>(byOpenId: T | undefined, byMatricNumber: T | undefined, byEmail: T | undefined) {
+  return byOpenId ?? byMatricNumber ?? byEmail;
+}
+
 export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  const existing = await getUserByOpenId(input.openId);
+  const existing = selectSupabaseProfile(
+    await getUserByOpenId(input.openId),
+    await getUserByMatricNumber(input.matricNumber),
+    input.email ? await getUserByEmail(input.email) : undefined,
+  );
   if (existing) {
-    await db.update(users).set({ email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).where(eq(users.id, existing.id));
-    return { ...existing, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" };
+    await db.update(users).set({
+      openId: input.openId,
+      email: input.email,
+      universityEmail: input.email,
+      name: input.name,
+      matricNumber: input.matricNumber,
+      loginMethod: "supabase-email",
+    }).where(eq(users.id, existing.id));
+    return {
+      ...existing,
+      openId: input.openId,
+      email: input.email,
+      universityEmail: input.email,
+      name: input.name,
+      matricNumber: input.matricNumber,
+      loginMethod: "supabase-email",
+    };
   }
   const inserted = await db.insert(users).values({ openId: input.openId, email: input.email, universityEmail: input.email, name: input.name, matricNumber: input.matricNumber, loginMethod: "supabase-email" }).$returningId();
   return getUserById(inserted[0]?.id ?? 0);
@@ -97,6 +120,13 @@ export async function getUserByUniversityEmail(email: string) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.universityEmail, email)).limit(1);
+  return result[0];
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
   return result[0];
 }
 

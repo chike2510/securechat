@@ -121,4 +121,6 @@
 - [x] Prevent the post-OTP session-hydration race that returns verified users to the login screen
 - [ ] Verify post-OTP success end to end: verified user stays authenticated and chat opens
 - [x] Add integration coverage for successful OTP verification through the auth bootstrap and Home auth gate
-- [ ] Deploy the session-hydration fix and confirm the production alias no longer bounces verified users to login
+- [x] Deploy the session-hydration fix and confirm the production alias no longer bounces verified users to login
+- [x] Diagnose the remaining production OTP verification bounce after the session-hydration fix
+- [ ] Verify the final OTP-to-chat path with a real production session before closing the auth bug
