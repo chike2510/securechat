@@ -23,17 +23,20 @@ type DatabaseEnv = {
 
 type DatabaseSource = "storage-postgres-prisma" | "storage-postgres-non-pooling" | "storage-postgres" | "database-url";
 
-export function resolveDatabaseConnection(env: DatabaseEnv = process.env as DatabaseEnv): { source: DatabaseSource; url: string } | null {
+export function resolveDatabaseConnections(env: DatabaseEnv = process.env as DatabaseEnv): Array<{ source: DatabaseSource; url: string }> {
   const candidates = [
     { source: "storage-postgres-prisma" as const, url: env.STORAGE_POSTGRES_PRISMA_URL },
     { source: "storage-postgres-non-pooling" as const, url: env.STORAGE_POSTGRES_URL_NON_POOLING },
     { source: "storage-postgres" as const, url: env.STORAGE_POSTGRES_URL },
     { source: "database-url" as const, url: env.DATABASE_URL },
   ];
-  const selected = candidates.find((candidate): candidate is { source: DatabaseSource; url: string } =>
+  return candidates.filter((candidate): candidate is { source: DatabaseSource; url: string } =>
     typeof candidate.url === "string" && candidate.url.startsWith("postgres"),
   );
-  return selected ?? null;
+}
+
+export function resolveDatabaseConnection(env: DatabaseEnv = process.env as DatabaseEnv): { source: DatabaseSource; url: string } | null {
+  return resolveDatabaseConnections(env)[0] ?? null;
 }
 
 export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv) {
@@ -42,10 +45,11 @@ export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv
 
 let _pool: Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
-let _schemaReady: Promise<void> | null = null;
+let _databaseInitialization: Promise<ReturnType<typeof drizzle> | null> | null = null;
 type DatabaseReadiness = "unconfigured" | "initializing" | "ready" | "failed";
 let _databaseReadiness: DatabaseReadiness = "unconfigured";
 let _databaseFailureCategory: "authentication" | "connection" | "schema" | "unknown" | null = null;
+let _databaseSource: DatabaseSource | null = null;
 
 export function databaseFailureCategory(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -64,7 +68,7 @@ export async function getDatabaseReadiness() {
   return {
     configured: Boolean(resolveDatabaseUrl()),
     driver: "storage-postgres" as const,
-    source: resolveDatabaseConnection()?.source ?? null,
+    source: _databaseSource ?? resolveDatabaseConnection()?.source ?? null,
     status: _databaseReadiness,
     failureCategory: _databaseFailureCategory,
   };
@@ -139,42 +143,39 @@ async function ensureStoragePostgresSchema(db: NonNullable<typeof _db>) {
 }
 
 export async function getDb() {
-  const connection = resolveDatabaseConnection();
-  if (!connection) {
+  const connections = resolveDatabaseConnections();
+  if (connections.length === 0) {
     _databaseReadiness = "unconfigured";
     return null;
   }
-  if (!_db) {
-    try {
+  if (_db) return _db;
+  if (!_databaseInitialization) {
+    _databaseInitialization = (async () => {
       _databaseReadiness = "initializing";
-      _pool = new Pool({
-        connectionString: connection.url,
-        max: 1,
-      });
-      _db = drizzle(_pool);
-    } catch (error) {
-      _databaseReadiness = "failed";
-      _databaseFailureCategory = databaseFailureCategory(error);
-      console.error("[Database] Failed to initialize Storage Postgres", error);
-      _pool = null;
-      _db = null;
-    }
-  }
-  if (_db && !_schemaReady) {
-    _schemaReady = ensureStoragePostgresSchema(_db).catch((error) => {
-      _schemaReady = null;
-      _databaseReadiness = "failed";
-      _databaseFailureCategory = databaseFailureCategory(error);
-      console.error("[Database] Storage Postgres schema initialization failed", error);
-      throw error;
+      for (const connection of connections) {
+        const pool = new Pool({ connectionString: connection.url, max: 2, min: 0, idleTimeoutMillis: 5_000 });
+        const db = drizzle(pool);
+        try {
+          await ensureStoragePostgresSchema(db);
+          _pool = pool;
+          _db = db;
+          _databaseSource = connection.source;
+          _databaseReadiness = "ready";
+          _databaseFailureCategory = null;
+          return db;
+        } catch (error) {
+          _databaseReadiness = "failed";
+          _databaseFailureCategory = databaseFailureCategory(error);
+          _databaseSource = connection.source;
+          await pool.end().catch(() => undefined);
+        }
+      }
+      return null;
+    })().finally(() => {
+      _databaseInitialization = null;
     });
   }
-  if (_schemaReady) {
-    await _schemaReady;
-    _databaseReadiness = "ready";
-    _databaseFailureCategory = null;
-  }
-  return _db;
+  return _databaseInitialization;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

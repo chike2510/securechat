@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { databaseFailureCategory, resolveDatabaseConnection, resolveDatabaseUrl, storagePostgresSchemaStatements } from "./db.js";
+import { databaseFailureCategory, resolveDatabaseConnection, resolveDatabaseConnections, resolveDatabaseUrl, storagePostgresSchemaStatements } from "./db.js";
 
 describe("Storage Postgres database configuration", () => {
   it("uses the Vercel Storage Postgres application/Prisma URL when available", () => {
@@ -10,6 +10,18 @@ describe("Storage Postgres database configuration", () => {
     expect(resolveDatabaseConnection({
       STORAGE_POSTGRES_PRISMA_URL: "postgresql://prisma.example/securechat",
     })?.source).toBe("storage-postgres-prisma");
+  });
+
+  it("keeps the direct and generic Postgres fallbacks available when the first source fails", () => {
+    expect(resolveDatabaseConnections({
+      STORAGE_POSTGRES_PRISMA_URL: "postgresql://prisma.example/securechat",
+      STORAGE_POSTGRES_URL_NON_POOLING: "postgresql://direct.example/securechat",
+      STORAGE_POSTGRES_URL: "postgresql://generic.example/securechat",
+    }).map((connection) => connection.source)).toEqual([
+      "storage-postgres-prisma",
+      "storage-postgres-non-pooling",
+      "storage-postgres",
+    ]);
   });
 
   it("prefers the connected Storage Postgres URL over a generic database URL", () => {
