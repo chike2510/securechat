@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveDatabaseUrl, storagePostgresSchemaStatements } from "./db.js";
+import { databaseFailureCategory, resolveDatabaseUrl, storagePostgresSchemaStatements } from "./db.js";
 
 describe("Storage Postgres database configuration", () => {
   it("uses the Vercel Storage Postgres non-pooling URL when DATABASE_URL is absent", () => {
@@ -28,5 +28,11 @@ describe("Storage Postgres database configuration", () => {
     expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS "encryptedMessages"');
     expect(schemaSql).toContain('"ciphertext" text NOT NULL');
     expect(schemaSql).toContain('"matricNumber" varchar(40) NOT NULL UNIQUE');
+  });
+
+  it("maps database failures to safe public diagnostic categories", () => {
+    expect(databaseFailureCategory(new Error("SSL connection failed"))).toBe("connection");
+    expect(databaseFailureCategory(new Error("password authentication failed"))).toBe("authentication");
+    expect(databaseFailureCategory(new Error("relation users does not exist"))).toBe("schema");
   });
 });

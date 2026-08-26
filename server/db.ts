@@ -34,6 +34,31 @@ export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv
 let _pool: Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
 let _schemaReady: Promise<void> | null = null;
+type DatabaseReadiness = "unconfigured" | "initializing" | "ready" | "failed";
+let _databaseReadiness: DatabaseReadiness = "unconfigured";
+let _databaseFailureCategory: "authentication" | "connection" | "schema" | "unknown" | null = null;
+
+export function databaseFailureCategory(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (message.includes("password") || message.includes("authentication")) return "authentication" as const;
+  if (message.includes("relation") || message.includes("table") || message.includes("schema")) return "schema" as const;
+  if (message.includes("ssl") || message.includes("connect") || message.includes("timeout") || message.includes("network")) return "connection" as const;
+  return "unknown" as const;
+}
+
+export async function getDatabaseReadiness() {
+  try {
+    await getDb();
+  } catch {
+    // getDb records only a safe readiness category; this endpoint must not rethrow database details.
+  }
+  return {
+    configured: Boolean(resolveDatabaseUrl()),
+    driver: "storage-postgres" as const,
+    status: _databaseReadiness,
+    failureCategory: _databaseFailureCategory,
+  };
+}
 
 export const storagePostgresSchemaStatements = [
   `CREATE TABLE IF NOT EXISTS "users" (
@@ -105,14 +130,21 @@ async function ensureStoragePostgresSchema(db: NonNullable<typeof _db>) {
 
 export async function getDb() {
   const connectionString = resolveDatabaseUrl();
+  if (!connectionString) {
+    _databaseReadiness = "unconfigured";
+    return null;
+  }
   if (!_db && connectionString) {
     try {
+      _databaseReadiness = "initializing";
       _pool = new Pool({
         connectionString,
         max: 1,
       });
       _db = drizzle(_pool);
     } catch (error) {
+      _databaseReadiness = "failed";
+      _databaseFailureCategory = databaseFailureCategory(error);
       console.error("[Database] Failed to initialize Storage Postgres", error);
       _pool = null;
       _db = null;
@@ -121,11 +153,17 @@ export async function getDb() {
   if (_db && !_schemaReady) {
     _schemaReady = ensureStoragePostgresSchema(_db).catch((error) => {
       _schemaReady = null;
+      _databaseReadiness = "failed";
+      _databaseFailureCategory = databaseFailureCategory(error);
       console.error("[Database] Storage Postgres schema initialization failed", error);
       throw error;
     });
   }
-  if (_schemaReady) await _schemaReady;
+  if (_schemaReady) {
+    await _schemaReady;
+    _databaseReadiness = "ready";
+    _databaseFailureCategory = null;
+  }
   return _db;
 }
 

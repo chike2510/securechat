@@ -130,3 +130,5 @@
 - [x] Fix `/api/config` so Vite-prefixed Supabase URL and public-key variables load the deployed auth screen
 - [ ] Deploy and verify the SecureChat Storage Postgres driver migration against the connected Vercel database
 - [ ] Apply the SecureChat schema to Storage Postgres and verify profile provisioning with the authorized account
+- [x] Add a safe production database-readiness diagnostic to identify the remaining Storage Postgres provisioning failure
+- [x] Ensure the database readiness endpoint returns a safe structured failure response when initialization fails
