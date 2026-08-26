@@ -14,9 +14,11 @@ export async function handleTrpcRequest(req: Parameters<typeof nodeHTTPRequestHa
       createContext: async ({ req: request, res: response }) => {
         let user = null;
         try {
-          const authorization = request.headers.authorization;
           const normalizedHeaders = new Headers();
-          if (typeof authorization === "string") normalizedHeaders.set("authorization", authorization);
+          for (const [name, value] of Object.entries(request.headers)) {
+            if (typeof value === "string") normalizedHeaders.set(name, value);
+            else if (Array.isArray(value)) normalizedHeaders.set(name, value.join(","));
+          }
           user = (await authenticateSupabaseRequest(normalizedHeaders)) ?? null;
         } catch (error) {
           console.error("[Vercel tRPC] Supabase auth lookup failed", error);

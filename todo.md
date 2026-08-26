@@ -124,3 +124,5 @@
 - [x] Deploy the session-hydration fix and confirm the production alias no longer bounces verified users to login
 - [x] Diagnose the remaining production OTP verification bounce after the session-hydration fix
 - [ ] Verify the final OTP-to-chat path with a real production session before closing the auth bug
+- [x] Test the supplied production account and capture the exact login/OTP redirect failure
+- [ ] Remove the supplied credential from the working conversation context after testing and advise a password change

@@ -32,9 +32,19 @@ export async function signInSupabaseWithMatric(matricNumber: string, password: s
 
 export async function authenticateSupabaseRequest(headers: IncomingHttpHeaders | Headers): Promise<User | undefined> {
   const token = bearerToken(headers);
-  if (!supabase || !token) return undefined;
+  if (!supabase) {
+    console.error("[SupabaseAuth] verifier is not configured");
+    return undefined;
+  }
+  if (!token) {
+    console.warn("[SupabaseAuth] request has no bearer token");
+    return undefined;
+  }
   const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) return undefined;
+  if (error || !data.user) {
+    console.error("[SupabaseAuth] token verification failed", error?.message ?? "user not returned");
+    return undefined;
+  }
   try {
     const openId = `supabase:${data.user.id}`;
     const existing = await getUserByOpenId(openId);
