@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
   value: {
     user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" },
     loading: false,
     isAuthenticated: true,
+    databaseProfileReady: true,
     logout: vi.fn(),
   },
 }));
@@ -51,11 +52,24 @@ vi.mock("socket.io-client", () => ({
 
 describe("Home authenticated handoff", () => {
   beforeEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    cleanup();
+    authState.value = { user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" }, loading: false, isAuthenticated: true, databaseProfileReady: true, logout: vi.fn() };
+  });
 
   it("renders the chat workspace when OTP verification has produced an authenticated user", async () => {
     const { default: Home } = await import("./Home");
     render(<Home />);
     expect(screen.getByRole("heading", { name: "Messages" })).toBeTruthy();
+    expect(screen.queryByText("Welcome back")).toBeNull();
+  });
+
+  it("keeps a verified user inside a truthful workspace state while the message database is unavailable", async () => {
+    authState.value = { user: { id: -1, name: "Ada FUPRE", email: "ada@example.com" }, loading: false, isAuthenticated: true, databaseProfileReady: false, logout: vi.fn() };
+    const { default: Home } = await import("./Home");
+    render(<Home />);
+    expect(screen.getByRole("heading", { name: "Messages" })).toBeTruthy();
+    expect(screen.getByText("You are signed in.")).toBeTruthy();
     expect(screen.queryByText("Welcome back")).toBeNull();
   });
 });

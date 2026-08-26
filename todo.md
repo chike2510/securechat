@@ -134,3 +134,6 @@
 - [x] Ensure the database readiness endpoint returns a safe structured failure response when initialization fails
 - [ ] Switch SecureChat from the failing Storage Postgres migration URL to the compatible Vercel application connection URL
 - [ ] Confirm which Vercel Storage Postgres connection sources are available and attempted in production
+- [ ] Reconnect or refresh the Vercel Storage Postgres integration so its injected credentials authenticate successfully
+- [x] Allow a verified Supabase session to enter the SecureChat workspace even when profile provisioning is temporarily unavailable
+- [x] Show a clear in-workspace database limitation state instead of returning a verified user to login

@@ -40,7 +40,8 @@ describe("useAuth session hydration", () => {
     renderHook(() => useAuth());
     expect(authMocks.useQuery).toHaveBeenCalledWith(undefined, expect.objectContaining({ enabled: false }));
 
-    await act(async () => resolveSession({ data: { session: { access_token: "token" } } }));
+    const restoredSession = { data: { session: { access_token: "token", user: { id: "user-id", email: "ada@example.com", user_metadata: {} } } } };
+    await act(async () => resolveSession(restoredSession));
     await waitFor(() => expect(authMocks.useQuery).toHaveBeenLastCalledWith(undefined, expect.objectContaining({ enabled: true })));
   });
 
@@ -57,5 +58,14 @@ describe("useAuth session hydration", () => {
 
     await act(async () => authStateListener());
     expect(authMocks.refetch).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a verified Supabase session authenticated while the database profile is unavailable", async () => {
+    authMocks.getSession.mockResolvedValue({ data: { session: { access_token: "token", user: { id: "user-id", email: "ada@example.com", user_metadata: { name: "Ada FUPRE", matricNumber: "FUPRE/2020/001" } } } } });
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.databaseProfileReady).toBe(false);
+    expect(result.current.user).toMatchObject({ id: -1, name: "Ada FUPRE", email: "ada@example.com", isProfilePending: true });
   });
 });

@@ -1,10 +1,27 @@
 import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+
+function sessionWorkspaceUser(session: Session | null) {
+  if (!session) return null;
+  const metadata = session.user.user_metadata as { name?: unknown; matricNumber?: unknown; matric_number?: unknown };
+  return {
+    id: -1,
+    openId: session.user.id,
+    name: typeof metadata.name === "string" ? metadata.name : session.user.email ?? "University user",
+    email: session.user.email ?? null,
+    universityEmail: session.user.email ?? null,
+    matricNumber: typeof metadata.matricNumber === "string" ? metadata.matricNumber : typeof metadata.matric_number === "string" ? metadata.matric_number : "PENDING",
+    role: "user" as const,
+    isProfilePending: true as const,
+  };
+}
 
 export function useAuth() {
   const utils = trpc.useUtils();
   const [sessionReady, setSessionReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
   const meQuery = trpc.auth.me.useQuery(undefined, {
     enabled: sessionReady,
     retry: false,
@@ -13,11 +30,16 @@ export function useAuth() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().finally(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setSession(data.session ?? null);
+    }).finally(() => {
       if (active) setSessionReady(true);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      if (active) void meQuery.refetch();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (active) {
+        setSession(nextSession ?? null);
+        void meQuery.refetch();
+      }
     });
     return () => {
       active = false;
@@ -27,15 +49,20 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+    setSession(null);
     utils.auth.me.setData(undefined, null);
     await utils.auth.me.invalidate();
   }, [utils]);
 
+  const profileUser = meQuery.data ?? null;
+  const workspaceUser = profileUser ?? sessionWorkspaceUser(session);
+
   return {
-    user: meQuery.data ?? null,
-    loading: !sessionReady || meQuery.isLoading,
+    user: workspaceUser,
+    loading: !sessionReady || (!session && meQuery.isLoading),
     error: meQuery.error ?? null,
-    isAuthenticated: Boolean(meQuery.data),
+    isAuthenticated: Boolean(session),
+    databaseProfileReady: Boolean(profileUser),
     refresh: () => meQuery.refetch(),
     logout,
   };

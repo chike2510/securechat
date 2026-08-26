@@ -26,7 +26,8 @@ function timeLabel(value?: Date | string | null) {
 }
 
 export default function Home() {
-  const { user, loading, isAuthenticated, logout } = useAuth();
+  const { user, loading, isAuthenticated, databaseProfileReady, logout } = useAuth();
+  const chatReady = isAuthenticated && databaseProfileReady;
   const [mobileListOpen, setMobileListOpen] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -44,10 +45,10 @@ export default function Home() {
   const sendMutation = trpc.secureChat.sendEncryptedMessage.useMutation();
   const statusMutation = trpc.secureChat.updateMessageStatus.useMutation();
   const presenceMutation = trpc.secureChat.presence.useMutation();
-  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = trpc.secureChat.conversations.useQuery(undefined, { enabled: isAuthenticated, refetchInterval: 5000 });
-  const { data: results = [] } = trpc.secureChat.searchUsers.useQuery({ query: search }, { enabled: isAuthenticated && search.length > 1 });
+  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = trpc.secureChat.conversations.useQuery(undefined, { enabled: chatReady, refetchInterval: 5000 });
+  const { data: results = [] } = trpc.secureChat.searchUsers.useQuery({ query: search }, { enabled: chatReady && search.length > 1 });
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = trpc.secureChat.messages.useQuery({ conversationId: selectedConversation ?? 0 }, { enabled: Boolean(selectedConversation), refetchInterval: 3500 });
-  const { data: notifications = [], error: notificationsError } = trpc.secureChat.notifications.useQuery(undefined, { enabled: isAuthenticated, refetchInterval: 7000 });
+  const { data: notifications = [], error: notificationsError } = trpc.secureChat.notifications.useQuery(undefined, { enabled: chatReady, refetchInterval: 7000 });
   const readNotificationMutation = trpc.secureChat.readNotification.useMutation();
 
   const activeConversation = conversations.find(item => item.conversationId === selectedConversation);
@@ -62,7 +63,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!chatReady) return;
     ensureIdentity().then(publicKey => identityMutation.mutate({ publicKey })).catch(() => toast.error("Could not initialize local encryption keys"));
     const socket = io(window.location.origin, { path: "/api/socket.io", transports: ["websocket", "polling"] });
     socketRef.current = socket;
@@ -71,14 +72,14 @@ export default function Home() {
     socket.on("message-created", () => { utils.secureChat.messages.invalidate(); utils.secureChat.conversations.invalidate(); utils.secureChat.notifications.invalidate(); });
     socket.on("presence-changed", () => utils.secureChat.conversations.invalidate());
     return () => { socket.disconnect(); socketRef.current = null; };
-  }, [isAuthenticated]);
+  }, [chatReady]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!chatReady) return;
     
     presenceMutation.mutate({ online: true });
     return () => { presenceMutation.mutate({ online: false }); };
-  }, [isAuthenticated]);
+  }, [chatReady]);
 
   useEffect(() => {
     if (!selectedConversation || !messages.length) return;
@@ -137,6 +138,10 @@ export default function Home() {
     return <AuthLanding />;
   }
 
+  if (!databaseProfileReady) {
+    return <WorkspaceDatabasePending user={user} logout={logout} />;
+  }
+
   return (
     <div className="min-h-screen blueprint-bg text-[#101722] overflow-hidden">
       <header className="h-16 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 relative z-20">
@@ -168,6 +173,21 @@ export default function Home() {
 }
 
 function Landing({ onLogin }: { onLogin: () => void }) { return <main className="min-h-screen blueprint-bg flex items-center justify-center p-6"><div className="max-w-5xl w-full grid md:grid-cols-[1.05fr_.95fr] gap-8 items-center"><div><div className="flex items-center gap-3 mb-10"><div className="h-10 w-10 bg-[#101722] text-white grid place-items-center font-mono font-bold">SC</div><span className="font-black text-xl tracking-tight">SecureChat</span></div><p className="font-mono text-xs uppercase tracking-[0.3em] text-slate-500 mb-5">Protected academic communications</p><h1 className="text-6xl md:text-8xl font-black tracking-[-0.08em] leading-[.86] max-w-3xl">Messages.<br /><span className="text-[#ff4f87]">Not</span> surveillance.</h1><p className="max-w-lg text-slate-600 mt-8 text-lg leading-relaxed">A focused prototype for private university messaging. Your message is encrypted in the browser before it travels through the network.</p><Button onClick={onLogin} className="mt-8 rounded-sm h-12 px-6 bg-[#101722] hover:bg-[#283342]">Enter SecureChat <ChevronLeft className="ml-2 rotate-180 h-4 w-4" /></Button><p className="mt-5 font-mono text-[10px] uppercase tracking-widest text-slate-400">Registered university users only</p></div><div className="relative min-h-[390px] hidden md:block"><div className="absolute right-12 top-8 h-64 w-64 border border-[#101722]/20 rotate-12" /><div className="absolute right-24 top-20 h-64 w-64 border border-[#ff4f87]/40 -rotate-6" /><div className="absolute left-8 top-24 w-72 bg-white/90 border border-slate-900/15 shadow-xl p-5 rotate-[-4deg]"><div className="flex justify-between font-mono text-[9px] uppercase tracking-widest text-slate-400 mb-8"><span>Message payload</span><LockKeyhole className="h-3 w-3" /></div><div className="font-mono text-xs leading-6 text-slate-500 break-all">8f3a7c2e...d9b11a<br />c2e0f08d...70aa9c<br />e2ff1a03...91bc22</div><div className="mt-8 flex items-center gap-2 text-[10px] font-mono text-emerald-600"><ShieldCheck className="h-3.5 w-3.5" /> plaintext never stored</div></div><div className="absolute bottom-4 right-0 bg-[#c8f7f1] px-5 py-4 font-mono text-xs rotate-3">AES-GCM / local key</div></div></div></main> }
+function WorkspaceDatabasePending({ user, logout }: { user: { name?: string | null; email?: string | null }; logout: () => Promise<void> }) {
+  return <main className="min-h-screen blueprint-bg text-[#101722]">
+    <header className="h-16 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl flex items-center justify-between px-4 md:px-8">
+      <div className="flex items-center gap-4"><div className="h-9 w-9 bg-[#101722] text-white rounded-sm grid place-items-center font-mono font-bold">SC</div><div><p className="font-black tracking-tight text-lg leading-none">SecureChat</p><p className="font-mono text-[9px] uppercase tracking-[0.24em] text-slate-500 mt-1">University communications / signed in</p></div></div>
+      <button onClick={() => void logout()} className="text-sm font-semibold hover:underline">Sign out</button>
+    </header>
+    <section className="max-w-5xl mx-auto px-4 py-8 md:py-14">
+      <div className="grid md:grid-cols-[0.82fr_1.18fr] border border-slate-900/15 bg-white/80 shadow-[0_24px_80px_rgba(16,23,34,0.10)]">
+        <aside className="border-b md:border-b-0 md:border-r border-slate-900/10 p-6 md:p-8"><p className="font-mono text-[10px] uppercase tracking-[0.24em] text-slate-400">Inbox / signed-in session</p><h1 className="text-4xl font-black tracking-[-0.06em] mt-2">Messages</h1><div className="mt-8 rounded-sm border border-slate-900/10 bg-[#fbfcfd] p-5"><div className="flex items-center gap-3"><div className="h-9 w-9 bg-[#c8f7f1] grid place-items-center"><ShieldCheck className="h-4 w-4" /></div><div><p className="font-semibold text-sm">{user.name || "University user"}</p><p className="text-xs text-slate-500">Verified Supabase session</p></div></div></div></aside>
+        <div className="p-6 md:p-10 flex flex-col justify-center"><div className="h-14 w-14 bg-[#ffd7e5] grid place-items-center rotate-[-4deg]"><LockKeyhole className="h-6 w-6" /></div><p className="font-mono text-[10px] uppercase tracking-[0.22em] text-slate-400 mt-8">Workspace access confirmed</p><h2 className="text-3xl font-black tracking-[-0.05em] mt-2">You are signed in.</h2><p className="text-slate-600 leading-relaxed mt-4 max-w-xl">Your SecureChat account is verified. The private message store is reconnecting, so conversations and sending are temporarily paused rather than sending you back to login.</p><div className="mt-7 flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-600" />Your browser session remains protected.</div></div>
+      </div>
+    </section>
+  </main>;
+}
+
 function EmptyInbox() { return <div className="p-8 text-center"><div className="h-12 w-12 border border-dashed border-slate-300 mx-auto grid place-items-center mb-4"><Search className="h-4 w-4 text-slate-400" /></div><p className="font-bold text-sm">No conversations yet</p><p className="text-xs text-slate-500 mt-2 leading-relaxed">Search for a registered university user to start a private channel.</p></div> }
 function EmptyConversation({ peer }: { peer?: string | null }) { return <div className="text-center py-16"><div className="h-16 w-16 mx-auto bg-[#ffd7e5] grid place-items-center rotate-3"><LockKeyhole className="h-6 w-6" /></div><h3 className="font-black text-xl mt-6">Private channel ready</h3><p className="text-sm text-slate-500 mt-2">Say hello to {peer || "your contact"}. This channel is protected by local encryption.</p></div> }
 function NoActiveChat({ onStart }: { onStart: () => void }) { return <div className="flex-1 grid place-items-center p-10"><div className="max-w-md text-center"><div className="h-20 w-20 mx-auto border border-slate-900/15 bg-[#c8f7f1] grid place-items-center rotate-[-6deg]"><MessageCircle className="h-8 w-8" /></div><p className="font-mono text-[10px] uppercase tracking-[0.25em] text-slate-400 mt-8">Secure channel matrix / idle</p><h2 className="text-4xl font-black tracking-[-0.06em] mt-2">Choose a conversation.</h2><p className="text-slate-500 mt-4 leading-relaxed">Select an existing thread or search the university directory to begin a protected exchange.</p><Button onClick={onStart} variant="outline" className="rounded-sm mt-7 md:hidden">Open conversations</Button></div></div> }
