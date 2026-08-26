@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { isSixDigitOtp, normalizeOtp } from "../shared/auth";
+import { isEightDigitOtp, normalizeOtp } from "../shared/auth";
 
 describe("SecureChat email OTP helpers", () => {
-  it("keeps only digits and caps pasted input at six characters", () => {
-    expect(normalizeOtp("12a 345678")).toBe("123456");
+  it("keeps only digits and caps pasted input at eight characters", () => {
+    expect(normalizeOtp("12a 34567890")).toBe("12345678");
   });
 
-  it("accepts exactly six digits", () => {
-    expect(isSixDigitOtp("123456")).toBe(true);
-    expect(isSixDigitOtp("12345")).toBe(false);
-    expect(isSixDigitOtp("1234567")).toBe(false);
-    expect(isSixDigitOtp("12345a")).toBe(false);
+  it("accepts exactly eight digits", () => {
+    expect(isEightDigitOtp("12345678")).toBe(true);
+    expect(isEightDigitOtp("1234567")).toBe(false);
+    expect(isEightDigitOtp("123456789")).toBe(false);
+    expect(isEightDigitOtp("1234567a")).toBe(false);
   });
 });

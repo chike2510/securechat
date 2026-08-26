@@ -117,3 +117,4 @@
 - [x] Deploy the latest OTP/auth.me changes and verify repeated unauthenticated production auth.me requests return HTTP 200
 - [x] Add component-level coverage for registration-to-OTP transition, six-digit validation, resend, and verification errors
 - [x] Remove the Supabase expiry implementation detail from the confirmation email template copy
+- [x] Align SecureChat OTP input and copy with the eight-digit Supabase token delivered by the configured email template

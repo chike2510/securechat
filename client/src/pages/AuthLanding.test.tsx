@@ -59,17 +59,17 @@ describe("AuthLanding email OTP flow", () => {
     expect(screen.queryByText("Account created. Check your email")).toBeNull();
   });
 
-  it("requires six digits, sanitizes input, and supports resend", async () => {
+  it("requires eight digits, sanitizes input, and supports resend", async () => {
     render(<AuthLanding />);
     completeRegistrationForm();
     await screen.findByText("Confirm your email");
 
-    const codeInput = screen.getByPlaceholderText("6-digit confirmation code");
+    const codeInput = screen.getByPlaceholderText("8-digit confirmation code");
     const verifyButton = screen.getByRole("button", { name: "Verify email" }) as HTMLButtonElement;
     expect(verifyButton.disabled).toBe(true);
 
-    fireEvent.change(codeInput, { target: { value: "12a 345678" } });
-    expect((codeInput as HTMLInputElement).value).toBe("123456");
+    fireEvent.change(codeInput, { target: { value: "12a 34567890" } });
+    expect((codeInput as HTMLInputElement).value).toBe("12345678");
     expect(verifyButton.disabled).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "Resend code" }));
@@ -80,10 +80,10 @@ describe("AuthLanding email OTP flow", () => {
     render(<AuthLanding />);
     completeRegistrationForm();
     await screen.findByText("Confirm your email");
-    fireEvent.change(screen.getByPlaceholderText("6-digit confirmation code"), { target: { value: "123456" } });
+    fireEvent.change(screen.getByPlaceholderText("8-digit confirmation code"), { target: { value: "12345678" } });
     fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
 
     await waitFor(() => expect(authMocks.toastError).toHaveBeenCalledWith("Invalid token"));
-    expect(authMocks.verifyOtp).toHaveBeenCalledWith({ email: "ada@example.com", token: "123456", type: "signup" });
+    expect(authMocks.verifyOtp).toHaveBeenCalledWith({ email: "ada@example.com", token: "12345678", type: "signup" });
   });
 });

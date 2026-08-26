@@ -1,6 +1,6 @@
 # SecureChat Supabase email setup
 
-SecureChat uses Supabase Auth for email/password accounts, but confirmation is completed with a **six-digit code inside the app**. The registration form only opens the code screen after Supabase successfully accepts the registration request.
+SecureChat uses Supabase Auth for email/password accounts, but confirmation is completed with an **eight-digit code inside the app**. The registration form only opens the code screen after Supabase successfully accepts the registration request.
 
 ## Authentication URL settings
 
@@ -24,11 +24,11 @@ In **Authentication → Email Templates → Confirm signup**, change the subject
 Confirm your SecureChat account
 ```
 
-Replace the link-only body with a token-based message. The important value is `{{ .Token }}`; do not use only `{{ .ConfirmationURL }}` because the application is expecting a six-digit code.
+Replace the link-only body with a token-based message. The important value is `{{ .Token }}`; do not use only `{{ .ConfirmationURL }}` because the application is expecting an eight-digit code.
 
 ```html
 <h2>Confirm your SecureChat account</h2>
-<p>Thanks for joining SecureChat. Enter this six-digit code in the app to finish creating your account:</p>
+<p>Thanks for joining SecureChat. Enter this eight-digit code in the app to finish creating your account:</p>
 <p style="font-size: 28px; letter-spacing: 8px; font-weight: 700;">{{ .Token }}</p>
 <p>Enter this code in SecureChat to confirm your account. If you did not create this account, you can ignore this email.</p>
 ```

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
-import { isSixDigitOtp, normalizeOtp } from "../../../shared/auth";
+import { isEightDigitOtp, normalizeOtp } from "../../../shared/auth";
 import { toast } from "sonner";
 import { ArrowUpRight, LockKeyhole, MailCheck } from "lucide-react";
 
@@ -139,10 +139,10 @@ export default function AuthLanding() {
             <form onSubmit={verifyEmailCode} className="space-y-4">
               <div className="rounded-sm bg-slate-50 border border-slate-900/10 p-4">
                 <MailCheck className="h-5 w-5 text-[#ff4f87] mb-3" />
-                <p className="text-sm text-slate-700">Enter the 6-digit code sent to <strong>{pendingVerificationEmail}</strong>.</p>
+                <p className="text-sm text-slate-700">Enter the 8-digit code sent to <strong>{pendingVerificationEmail}</strong>.</p>
               </div>
-              <Input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={event => setVerificationCode(normalizeOtp(event.target.value))} placeholder="6-digit confirmation code" className="rounded-sm h-11 font-mono tracking-[0.35em]" />
-              <Button disabled={busy || !isSixDigitOtp(verificationCode)} className="w-full rounded-sm h-11 bg-[#101722] hover:bg-[#283342]">
+              <Input required inputMode="numeric" pattern="[0-9]{8}" maxLength={8} value={verificationCode} onChange={event => setVerificationCode(normalizeOtp(event.target.value))} placeholder="8-digit confirmation code" className="rounded-sm h-11 font-mono tracking-[0.35em]" />
+              <Button disabled={busy || !isEightDigitOtp(verificationCode)} className="w-full rounded-sm h-11 bg-[#101722] hover:bg-[#283342]">
                 {busy ? "Verifying..." : "Verify email"}
                 <ArrowUpRight className="ml-2 h-4 w-4" />
               </Button>
