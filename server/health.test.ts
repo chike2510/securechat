@@ -23,7 +23,7 @@ describe("database health endpoint", () => {
 
     expect(response.status).toHaveBeenCalledWith(503);
     expect(response.json).toHaveBeenCalledWith({
-      database: { configured: true, driver: "storage-postgres", source: null, status: "failed", failureCategory: "unknown" },
+      database: { configured: true, driver: "storage-postgres", source: null, configuredSources: [], attemptedSources: [], status: "failed", failureCategory: "unknown" },
     });
     expect(JSON.stringify(response.json.mock.calls[0]?.[0])).not.toContain("connection URL");
   });

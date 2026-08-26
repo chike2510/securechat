@@ -133,3 +133,4 @@
 - [x] Add a safe production database-readiness diagnostic to identify the remaining Storage Postgres provisioning failure
 - [x] Ensure the database readiness endpoint returns a safe structured failure response when initialization fails
 - [ ] Switch SecureChat from the failing Storage Postgres migration URL to the compatible Vercel application connection URL
+- [ ] Confirm which Vercel Storage Postgres connection sources are available and attempted in production

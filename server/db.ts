@@ -50,6 +50,7 @@ type DatabaseReadiness = "unconfigured" | "initializing" | "ready" | "failed";
 let _databaseReadiness: DatabaseReadiness = "unconfigured";
 let _databaseFailureCategory: "authentication" | "connection" | "schema" | "unknown" | null = null;
 let _databaseSource: DatabaseSource | null = null;
+let _attemptedDatabaseSources: DatabaseSource[] = [];
 
 export function databaseFailureCategory(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -69,6 +70,8 @@ export async function getDatabaseReadiness() {
     configured: Boolean(resolveDatabaseUrl()),
     driver: "storage-postgres" as const,
     source: _databaseSource ?? resolveDatabaseConnection()?.source ?? null,
+    configuredSources: resolveDatabaseConnections().map((connection) => connection.source),
+    attemptedSources: _attemptedDatabaseSources,
     status: _databaseReadiness,
     failureCategory: _databaseFailureCategory,
   };
@@ -152,7 +155,9 @@ export async function getDb() {
   if (!_databaseInitialization) {
     _databaseInitialization = (async () => {
       _databaseReadiness = "initializing";
+      _attemptedDatabaseSources = [];
       for (const connection of connections) {
+        _attemptedDatabaseSources.push(connection.source);
         const pool = new Pool({ connectionString: connection.url, max: 2, min: 0, idleTimeoutMillis: 5_000 });
         const db = drizzle(pool);
         try {
