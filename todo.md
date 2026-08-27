@@ -194,3 +194,10 @@
 
 - [x] Replace Vercel-only managed asset paths that return 404 on the public domain with deployment-safe logo/avatar assets
 - [ ] Re-test the public logo and authenticated screens after the asset delivery correction
+
+- [x] Remove the unnecessary “Encrypted on this device before sending” footer copy from the chat composer
+- [x] Change the Security control to a padlock-only button with an accessible label
+- [x] Stop displaying stale or incorrect online presence in direct-chat headers
+- [x] Render the other user’s authorized uploaded profile photo in the direct-chat header
+- [x] Improve light-mode chat surfaces, spacing, message bubbles, and composer contrast to match the approved mockup
+- [ ] Re-test the corrected direct-chat states on mobile and redeploy

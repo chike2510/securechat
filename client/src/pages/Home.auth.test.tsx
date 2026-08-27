@@ -138,18 +138,21 @@ describe("Home authenticated handoff", () => {
   });
 
   it("renders the mockup-aligned direct-chat structure for a selected conversation", async () => {
-    workspaceState.conversations = [{ conversationId: 7, kind: "direct", title: null, peer: { id: 2, name: "Elisha Onovo", username: "elisha", profileImageUrl: null, isOnline: true, publicKey: "peer-key" }, pinned: false, muted: false, hidden: false }];
+    workspaceState.conversations = [{ conversationId: 7, kind: "direct", title: null, peer: { id: 2, name: "Elisha Onovo", username: "elisha", profileImageUrl: "https://cdn.example/elisha.jpg", isOnline: true, publicKey: "peer-key" }, pinned: false, muted: false, hidden: false }];
     const { default: Home } = await import("./Home");
     render(<Home />);
 
     fireEvent.click(screen.getByRole("button", { name: /Elisha Onovo/ }));
     expect(screen.getAllByText("SecureChat").length).toBeGreaterThan(0);
     expect(screen.getByText("@elisha")).toBeTruthy();
+    expect(screen.getAllByAltText("Elisha Onovo profile photo").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("online")).toBeNull();
     expect(screen.getAllByText("Private chat").length).toBe(2);
+    expect(screen.getByRole("button", { name: "Security" })).toBeTruthy();
     expect(screen.getByPlaceholderText("Write a message")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Attach encrypted file" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Record voice note" })).toBeTruthy();
-    expect(screen.getByText("Encrypted on this device before sending")).toBeTruthy();
+    expect(screen.queryByText("Encrypted on this device before sending")).toBeNull();
   });
 
   it("keeps a verified user inside a truthful workspace state while the message database is unavailable", async () => {

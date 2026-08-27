@@ -27,7 +27,7 @@ describe("FriendProfileDialog", () => {
   it("shows a username without an email and opens an accepted friend chat from Message", async () => {
     render(<FriendProfileDialog userId={2} open onOpenChange={vi.fn()} onConversationOpen={mocks.onConversationOpen} />);
     expect(screen.getByText("@adaeze")).toBeTruthy();
-    expect(document.querySelector('img[alt=""]')?.getAttribute("src")).toBe("https://cdn.example/profile.jpg");
+    expect(document.querySelector('img[alt="Adaeze Okafor profile photo"]')?.getAttribute("src")).toBe("https://cdn.example/profile.jpg");
     expect(screen.queryByText(/@.*gmail|@.*yahoo/i)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Message" }));

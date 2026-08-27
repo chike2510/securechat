@@ -90,3 +90,32 @@ button:active:not(:disabled) { transform: scale(.97); }
 .dark input, .dark textarea { color: var(--foreground); }
 @media (prefers-reduced-motion: no-preference) { .blueprint-bg > * { animation: rise-in 420ms cubic-bezier(.23,1,.32,1) both; } }
 @keyframes rise-in { from { opacity: .2; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.chat-shell { background: #f4f9fb; color: #101722; }
+.chat-header { background: rgba(255, 255, 255, .94); border-color: rgba(16, 23, 34, .12); color: #101722; }
+.chat-body { background: linear-gradient(180deg, #f6fbfc 0%, #edf5f7 100%); color: #101722; }
+.chat-composer { background: rgba(255, 255, 255, .96); border-color: rgba(16, 23, 34, .12); }
+.chat-composer-box { background: #f2f7f8; border-color: rgba(16, 23, 34, .16); }
+.chat-bubble-incoming { background: #e2edf0; color: #101722; }
+.chat-bubble-outgoing { background: #b9f2e8; color: #101722; }
+.chat-meta { color: #647381; }
+.chat-divider { background-color: rgba(16, 23, 34, .14); }
+.chat-security-button { border-color: rgba(16, 23, 34, .18); color: #101722; }
+.chat-security-button:hover { background: rgba(16, 23, 34, .06); }
+.dark .chat-shell { background: #071523; color: #fff; }
+.dark .chat-header { background: #071523; border-color: rgba(255, 255, 255, .1); color: #fff; }
+.dark .chat-body { background: #071523; color: #fff; }
+.dark .chat-composer { background: #071523; border-color: rgba(255, 255, 255, .1); }
+.dark .chat-composer-box { background: #0d1c2d; border-color: rgba(255, 255, 255, .2); }
+.dark .chat-bubble-incoming { background: #1c3045; color: #fff; }
+.dark .chat-bubble-outgoing { background: #b9f2e8; color: #101722; }
+.dark .chat-meta { color: rgba(255, 255, 255, .45); }
+.dark .chat-divider { background-color: rgba(255, 255, 255, .14); }
+.dark .chat-security-button { border-color: rgba(255, 255, 255, .2); color: #fff; }
+.dark .chat-security-button:hover { background: rgba(255, 255, 255, .1); }
+.chat-peer-meta { color: #657382; }
+.dark .chat-peer-meta { color: rgba(255, 255, 255, .55); }
+.chat-header-action { color: #101722; }
+.chat-header-action:hover { background: rgba(16, 23, 34, .06); color: #101722; }
+.dark .chat-header-action { color: #fff; }
+.dark .chat-header-action:hover { background: rgba(255, 255, 255, .1); color: #fff; }
