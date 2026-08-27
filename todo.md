@@ -139,6 +139,9 @@
 - [x] Show a clear in-workspace database limitation state instead of returning a verified user to login
 - [ ] Restore production database/profile provisioning so verified Supabase users reach the full Messages chat workspace instead of the signed-in fallback shell
 - [ ] Verify a real OTP-confirmed production account loads conversations and can enter active chat without returning to login
-- [ ] Replace the failing Vercel Storage Postgres chat dependency with the existing Supabase-backed project integration
-- [ ] Deploy the Supabase-backed encrypted message store and verify production readiness without exposing any server key
+- [x] Replace the failing Vercel Storage Postgres chat dependency with the existing Supabase-backed project integration
+- [x] Deploy the Supabase-backed encrypted message store and verify production readiness without exposing any server key
 - [ ] Verify real OTP-to-active-chat flow, including profile creation, conversation listing, encrypted send, and read state
+- [x] Fix the profile control so tapping the signed-in user does not sign out
+- [x] Remove the unnecessary “University communications / v1.0” workspace subtitle
+- [x] Remove the unexplained “Local key present” strip from the Messages sidebar

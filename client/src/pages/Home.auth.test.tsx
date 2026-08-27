@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
@@ -62,6 +62,22 @@ describe("Home authenticated handoff", () => {
     render(<Home />);
     expect(screen.getByRole("heading", { name: "Messages" })).toBeTruthy();
     expect(screen.queryByText("Welcome back")).toBeNull();
+    expect(screen.queryByText("University communications / v1.0")).toBeNull();
+    expect(screen.queryByText("Local key")).toBeNull();
+  });
+
+  it("opens a profile menu without signing out until sign out is explicitly chosen", async () => {
+    const logout = vi.fn();
+    authState.value = { user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" }, loading: false, isAuthenticated: true, databaseProfileReady: true, logout };
+    const { default: Home } = await import("./Home");
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open profile menu" }));
+    expect(logout).not.toHaveBeenCalled();
+    expect(screen.getByText("ada@example.com")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(logout).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a verified user inside a truthful workspace state while the message database is unavailable", async () => {
