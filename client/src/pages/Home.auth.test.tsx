@@ -96,6 +96,10 @@ describe("Home authenticated handoff", () => {
     expect(screen.getByRole("heading", { name: "Your profile" })).toBeTruthy();
     expect(screen.getByText("Illustrated avatar")).toBeTruthy();
     expect(screen.getByText(/upload picture/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose ink avatar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose mint avatar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose rose avatar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose violet avatar" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(logout).toHaveBeenCalledTimes(1);
