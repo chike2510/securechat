@@ -191,3 +191,6 @@
 
 - [ ] User reports the public app still shows the old logo, missing profile photo, and old chat layout
 - [ ] Reconcile the public deployment and re-test the actual authenticated screens before claiming the fixes are live
+
+- [x] Replace Vercel-only managed asset paths that return 404 on the public domain with deployment-safe logo/avatar assets
+- [ ] Re-test the public logo and authenticated screens after the asset delivery correction

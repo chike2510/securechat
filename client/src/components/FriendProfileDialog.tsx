@@ -4,12 +4,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { trpc } from "@/lib/trpc";
 import { Check, ChevronLeft, MessageCircle, UserRoundPlus } from "lucide-react";
 import { toast } from "sonner";
+import { avatarBucketHat, avatarHeadphones, avatarSmile, avatarYellowHoodie } from "@/lib/brandAssets";
 
 const avatars = {
-  mint: "/manus-storage/securechat-avatar-smile_faf5afe6.png",
-  violet: "/manus-storage/securechat-avatar-headphones_beece622.png",
-  rose: "/manus-storage/securechat-avatar-bucket-hat_795cb7ed.png",
-  ink: "/manus-storage/securechat-avatar-yellow-hoodie_45aa574d.png",
+  mint: avatarSmile,
+  violet: avatarHeadphones,
+  rose: avatarBucketHat,
+  ink: avatarYellowHoodie,
 } as const;
 
 type FriendProfileDialogProps = {
