@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
@@ -14,6 +14,7 @@ const authState = vi.hoisted(() => ({
 }));
 
 const themeState = vi.hoisted(() => ({ theme: "light" as "light" | "dark", toggleTheme: vi.fn() }));
+const directoryState = vi.hoisted(() => ({ people: [] as Array<{ id: number; name: string; email: string; friendRequestStatus: "pending" | "accepted" | null }>, requestResult: { requestId: 2, status: "pending" as const, alreadyPending: false } }));
 const mutation = () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(1), isPending: false });
 const query = () => ({ data: [], isLoading: false, error: null });
 
@@ -31,7 +32,7 @@ vi.mock("@/lib/trpc", () => ({
     secureChat: {
       setPublicKey: { useMutation: mutation },
       openConversation: { useMutation: mutation },
-      requestMessage: { useMutation: mutation },
+      requestMessage: { useMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockImplementation(() => Promise.resolve(directoryState.requestResult)), isPending: false }) },
       sendEncryptedMessage: { useMutation: mutation },
       uploadEncryptedAttachment: { useMutation: mutation },
       updateMessageStatus: { useMutation: mutation },
@@ -43,7 +44,7 @@ vi.mock("@/lib/trpc", () => ({
       setConversationPreference: { useMutation: mutation },
       createGroup: { useMutation: mutation },
       conversations: { useQuery: query },
-      searchUsers: { useQuery: query },
+      searchUsers: { useQuery: () => ({ data: directoryState.people, isLoading: false, error: null }) },
       messages: { useQuery: query },
       notifications: { useQuery: query },
       profileSettings: { useQuery: query },
@@ -70,6 +71,8 @@ describe("Home authenticated handoff", () => {
   afterEach(() => {
     cleanup();
     authState.value = { user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" }, loading: false, isAuthenticated: true, databaseProfileReady: true, logout: vi.fn() };
+    directoryState.people = [];
+    directoryState.requestResult = { requestId: 2, status: "pending", alreadyPending: false };
   });
 
   it("renders the chat workspace when OTP verification has produced an authenticated user", async () => {
@@ -81,8 +84,8 @@ describe("Home authenticated handoff", () => {
     expect(screen.queryByText("Local key")).toBeNull();
     expect(screen.getByRole("button", { name: /new group/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Use dark mode" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "People" }));
-    expect(screen.getByText("Other registered students")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Find friend" }));
+    expect(screen.getByText("Other people on SecureChat")).toBeTruthy();
   });
 
   it("shows only the SecureChat logo while the authenticated workspace is loading", async () => {
@@ -103,7 +106,7 @@ describe("Home authenticated handoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open profile menu" }));
     expect(logout).not.toHaveBeenCalled();
     expect(screen.getByText("ada@example.com")).toBeTruthy();
-    expect(screen.getByText("Message requests")).toBeTruthy();
+    expect(screen.getByText("Friend requests")).toBeTruthy();
     expect(screen.getByText("Profile & settings")).toBeTruthy();
 
     fireEvent.click(screen.getByText("Profile & settings"));
@@ -118,6 +121,18 @@ describe("Home authenticated handoff", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a sent friend request visible and unavailable for a second tap", async () => {
+    directoryState.people = [{ id: 2, name: "Elisha Onovo", email: "elisha@example.com", friendRequestStatus: null }];
+    const { default: Home } = await import("./Home");
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Find friend" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Elisha Onovo as a friend" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Friend request sent to Elisha Onovo" })).toBeTruthy());
+    expect((screen.getByRole("button", { name: "Friend request sent to Elisha Onovo" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("keeps a verified user inside a truthful workspace state while the message database is unavailable", async () => {

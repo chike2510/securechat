@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDiscoverableProfile, selectSupabaseProfile } from "./db.js";
+import { friendRequestResult, isDiscoverableProfile, selectSupabaseProfile } from "./db.js";
 
 describe("Supabase profile reuse", () => {
   it("prefers the Supabase identity, then matric number, then email", () => {
@@ -20,5 +20,10 @@ describe("Supabase profile reuse", () => {
     expect(isDiscoverableProfile(elisha, 8, "elisha")).toBe(true);
     expect(isDiscoverableProfile(elisha, 8, "COS/2024")).toBe(true);
     expect(isDiscoverableProfile(elisha, 14, "elisha")).toBe(false);
+  });
+
+  it("marks an existing pending friend request without creating a second one", () => {
+    expect(friendRequestResult()).toEqual({ status: "pending", alreadyPending: false });
+    expect(friendRequestResult("pending")).toEqual({ status: "pending", alreadyPending: true });
   });
 });

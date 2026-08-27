@@ -168,6 +168,10 @@
 - [x] Replace the initial text loading screen with a logo-only SecureChat loading state
 - [x] Repair registered-student discovery so another active SecureChat account appears in contact search
 - [x] Add a dedicated People view for browsing registered students and sending a message request
+- [x] Rename contact discovery and message-request language to Find friend and Friend request
+- [x] Match the Find friend action button size to New group on mobile
+- [x] Show a visible pending friend-request state on a person’s card after it is sent
+- [x] Prevent duplicate friend requests while the recipient has not accepted or declined
 - [x] Confirm the primary Supabase integration remains intact after the stale Preview Branch event; a later Vercel deployment completed successfully
 - [x] Confirm the People directory is live after the successful later deployment
 - [ ] Visually verify on production that the initial loader shows only the SC logo with no visible loading text

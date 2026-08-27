@@ -44,3 +44,6 @@
 
 - Vercel recorded the older logo-loader commit `1ca782d` as failed because the optional `supabase-blue-arrow: Supabase Preview Branch` provisioning stage became stale. This was not an application build failure.
 - The later Git commit `5134f4b` completed successfully on Vercel. The production alias now serves the People directory controls; that deployment outcome confirms the stale preview-branch event did not disable the primary Supabase integration.
+
+- The Find friend refinement is implemented and locally validated: its control now matches New group, all contact and profile-menu language uses “Friend request,” a sent card changes to “Request sent,” and the action is disabled while pending.
+- The server now preserves the deterministic request record and returns an explicit already-pending result, preventing a duplicate request from being written or presented as new. Full local validation passed: type-check, 45 Vitest tests, and production build. A real two-account production acceptance and conversation test remains open.

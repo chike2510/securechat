@@ -464,6 +464,7 @@ export async function createLocalUser() {
 
 export async function searchUsers(currentUserId: number, query: string) {
   const needle = query.trim().toLowerCase();
+  const currentSubject = await findSubjectByNumericId(currentUserId);
   const authUsers = await listAuthUsers();
   const results: Array<User | undefined> = await Promise.all(authUsers.slice(0, 1000).map(async (authUser) => {
     const stored = await readJson<RemoteProfile>(profilePath(authUser.id));
@@ -471,9 +472,13 @@ export async function searchUsers(currentUserId: number, query: string) {
     return profile ? profileToUser(profile) : undefined;
   }));
   const profiles = results.filter((profile): profile is User => profile !== undefined);
-  return profiles.filter((profile) => isDiscoverableProfile(profile, currentUserId, needle))
-    .slice(0, 30)
-    .map((profile) => ({ id: profile.id, subject: subjectFromOpenId(profile.openId), name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt }));
+  const discoverableProfiles = profiles.filter((profile) => isDiscoverableProfile(profile, currentUserId, needle)).slice(0, 30);
+  return Promise.all(discoverableProfiles.map(async (profile) => {
+    const subject = subjectFromOpenId(profile.openId);
+    const request = currentSubject ? await readJson<StoredMessageRequest>(messageRequestPath(subject, directConversationId(currentSubject, subject))) : undefined;
+    const friendRequestStatus = currentSubject && request?.senderSubject === currentSubject ? request.status : null;
+    return { id: profile.id, subject, name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, friendRequestStatus };
+  }));
 }
 
 export function isDiscoverableProfile(profile: Pick<User, "id" | "name" | "email" | "matricNumber">, currentUserId: number, query: string) {
@@ -576,22 +581,26 @@ export async function listMessageRequests(userId: number) {
   }))).then((items) => items.filter((item): item is { id: number; createdAt: Date; sender: User } => Boolean(item.sender)));
 }
 
+export function friendRequestResult(existingStatus?: StoredMessageRequest["status"]) {
+  return { status: "pending" as const, alreadyPending: existingStatus === "pending" };
+}
+
 export async function createMessageRequest(userId: number, otherUserId: number) {
   if (userId === otherUserId) throw new Error("You cannot message yourself");
   await assertDirectContactAllowed(userId, otherUserId);
   const [senderSubject, recipientSubject] = await Promise.all([subjectForUserId(userId), subjectForUserId(otherUserId)]);
   const id = directConversationId(senderSubject, recipientSubject);
   const existing = await readJson<StoredMessageRequest>(messageRequestPath(recipientSubject, id));
-  if (existing?.status === "pending") return { requestId: id, status: "pending" as const };
+  if (existing?.status === "pending") return { requestId: id, ...friendRequestResult(existing.status) };
   const request: StoredMessageRequest = { id, senderSubject, recipientSubject, createdAt: now(), status: "pending" };
   await writeJson(messageRequestPath(recipientSubject, id), request);
-  return { requestId: id, status: "pending" as const };
+  return { requestId: id, ...friendRequestResult() };
 }
 
 export async function respondToMessageRequest(userId: number, requestId: number, action: "accept" | "decline") {
   const recipientSubject = await subjectForUserId(userId);
   const request = await readJson<StoredMessageRequest>(messageRequestPath(recipientSubject, requestId));
-  if (!request || request.recipientSubject !== recipientSubject || request.status !== "pending") throw new Error("Message request is unavailable");
+  if (!request || request.recipientSubject !== recipientSubject || request.status !== "pending") throw new Error("Friend request is unavailable");
   const nextStatus = action === "accept" ? "accepted" : "declined";
   await writeJson(messageRequestPath(recipientSubject, requestId), { ...request, status: nextStatus });
   if (action === "decline") return { conversationId: null };
