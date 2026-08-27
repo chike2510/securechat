@@ -59,3 +59,6 @@ The latest public bundle contained the new branding, profile-image, and chat-lay
 ## 2026-08-27 — chat correction pass
 
 The user reported that the direct-chat screen still showed an incorrect online label, an unnecessary “Encrypted on this device before sending” footer, a text-labelled Security button, poor light-mode contrast, and initials instead of the peer photo. The latest correction replaces the Radix fallback path with a load-aware profile avatar, removes visible peer presence indicators from the chat and friend profile, changes Security to an accessible padlock-only button, removes the footer sentence, and adds dedicated light/dark chat surface tokens. Local validation passed with `pnpm check`, 47 Vitest tests, and `pnpm build`. The real authenticated public mobile result remains the final verification step.
+
+
+The correction checkpoint `82664d5` was pushed to GitHub main and Vercel reported a successful deployment. The public alias returned HTTP 200, and the deployed bundle no longer contains the removed encryption-footer sentence while retaining the new `chat-shell` structure. The public authenticated mobile screen still needs a fresh user-side refresh to confirm the peer image and light-mode presentation.
