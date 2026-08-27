@@ -56,10 +56,11 @@ export function useAuth() {
 
   const profileUser = meQuery.data ?? null;
   const workspaceUser = profileUser ?? sessionWorkspaceUser(session);
+  const profileLoading = Boolean(session) && Boolean(meQuery.isPending);
 
   return {
     user: workspaceUser,
-    loading: !sessionReady || (!session && meQuery.isLoading),
+    loading: !sessionReady || (!session && meQuery.isLoading) || profileLoading,
     error: meQuery.error ?? null,
     isAuthenticated: Boolean(session),
     databaseProfileReady: Boolean(profileUser),

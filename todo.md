@@ -145,3 +145,4 @@
 - [x] Fix the profile control so tapping the signed-in user does not sign out
 - [x] Remove the unnecessary “University communications / v1.0” workspace subtitle
 - [x] Remove the unexplained “Local key present” strip from the Messages sidebar
+- [x] Prevent the misleading signed-in fallback screen from flashing during authenticated page refresh

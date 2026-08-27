@@ -68,4 +68,15 @@ describe("useAuth session hydration", () => {
     expect(result.current.databaseProfileReady).toBe(false);
     expect(result.current.user).toMatchObject({ id: -1, name: "Ada FUPRE", email: "ada@example.com", isProfilePending: true });
   });
+
+  it("keeps the normal loading state while a restored session profile is pending", async () => {
+    authMocks.getSession.mockResolvedValue({ data: { session: { access_token: "token", user: { id: "user-id", email: "ada@example.com", user_metadata: { name: "Ada FUPRE", matricNumber: "FUPRE/2020/001" } } } } });
+    authMocks.useQuery.mockReturnValue({ data: null, isLoading: true, isPending: true, error: null, refetch: authMocks.refetch });
+
+    const { result } = renderHook(() => useAuth());
+
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+    expect(result.current.loading).toBe(true);
+    expect(result.current.databaseProfileReady).toBe(false);
+  });
 });
