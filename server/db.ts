@@ -96,6 +96,7 @@ type StoredMessage = {
     ciphertextPath: string;
     iv: string;
     kind: "file" | "voice";
+    waveform?: number[];
   } | null;
 };
 
@@ -866,7 +867,7 @@ export async function listEncryptedMessages(userId: number, conversationId: numb
   return messages.sort((first, second) => first.createdAt.localeCompare(second.createdAt)).map(materializeMessage);
 }
 
-export async function uploadEncryptedAttachment(userId: number, input: { conversationId: number; ciphertext: string; iv: string; name: string; mediaType: string; size: number; kind: "file" | "voice" }) {
+export async function uploadEncryptedAttachment(userId: number, input: { conversationId: number; ciphertext: string; iv: string; name: string; mediaType: string; size: number; kind: "file" | "voice"; waveform?: number[] }) {
   await assertParticipant(userId, input.conversationId);
   const bytes = Buffer.from(input.ciphertext, "base64");
   if (!bytes.length || bytes.length > MAX_ENCRYPTED_ATTACHMENT_BYTES) throw new Error("Encrypted attachment must be smaller than 3 MB");
@@ -882,6 +883,7 @@ export async function uploadEncryptedAttachment(userId: number, input: { convers
     ciphertextPath,
     iv: input.iv,
     kind: input.kind,
+    waveform: input.kind === "voice" ? input.waveform?.slice(0, 80).map(level => Math.max(0, Math.min(1, level))) : undefined,
   } satisfies NonNullable<StoredMessage["attachment"]>;
 }
 

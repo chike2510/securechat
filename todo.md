@@ -206,3 +206,9 @@
 - [x] Trace the active conversation payload and render the recipient’s uploaded profile photo instead of the EO fallback
 - [x] Finish the remaining light-mode chat proportions and header polish against the approved mockup
 - [ ] Re-run production checks and verify a fresh mobile deployment after these corrections
+
+- [x] Replace browser-native voice-note playback with a curved custom voice-note card matching the approved mockup
+- [x] Capture speech loudness samples during recording and persist a compact waveform with the encrypted voice-note metadata
+- [x] Render louder speech as taller waveform bars and quieter speech as shorter bars during playback
+- [x] Add responsive playback progress and controls without losing the curved mobile layout
+- [ ] Test voice recording, encrypted upload/download, waveform rendering, and playback on mobile
