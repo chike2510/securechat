@@ -4,6 +4,7 @@ import type { InsertUser, User } from "../drizzle/schema.js";
 import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle.js";
 
 const BUCKET = "securechat-private-v1";
+const MAX_ENCRYPTED_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 
 type StorageEnv = {
   SUPABASE_URL?: string;
@@ -23,6 +24,7 @@ type RemoteProfile = {
   matricNumber: string;
   role: "user" | "admin";
   publicKey: string | null;
+  readReceiptsEnabled: boolean;
   lastSeenAt: string | null;
   isOnline: boolean;
   createdAt: string;
@@ -32,7 +34,13 @@ type RemoteProfile = {
 
 type ConversationInfo = {
   id: number;
-  participants: [string, string];
+  kind: "direct" | "group";
+  title: string | null;
+  participants: string[];
+  ownerSubject: string;
+  groupKeyVersion: string;
+  groupKeyEnvelopes: Record<string, { ciphertext: string; iv: string; ownerPublicKey: string }>;
+  groupKeyEnvelopesByVersion: Record<string, Record<string, { ciphertext: string; iv: string; ownerPublicKey: string }>>;
   createdAt: string;
   updatedAt: string;
 };
@@ -40,9 +48,28 @@ type ConversationInfo = {
 type ConversationIndex = {
   conversationId: number;
   peerSubject: string;
+  kind: "direct" | "group";
+  title: string | null;
   createdAt: string;
   updatedAt: string;
   latestMessageAt: string | null;
+  pinned: boolean;
+  muted: boolean;
+  hidden: boolean;
+};
+
+type StoredMessageRequest = {
+  id: number;
+  senderSubject: string;
+  recipientSubject: string;
+  createdAt: string;
+  status: "pending" | "accepted" | "declined" | "blocked";
+};
+
+type BlockRecord = {
+  subject: string;
+  blockedSubject: string;
+  createdAt: string;
 };
 
 type StoredMessage = {
@@ -56,6 +83,15 @@ type StoredMessage = {
   createdAt: string;
   deliveredAt: string | null;
   readAt: string | null;
+  attachment: {
+    id: number;
+    name: string;
+    mediaType: string;
+    size: number;
+    ciphertextPath: string;
+    iv: string;
+    kind: "file" | "voice";
+  } | null;
 };
 
 type StoredNotification = {
@@ -99,12 +135,17 @@ export function databaseFailureCategory(error: unknown) {
 
 async function ensureBucket(client: SupabaseClient) {
   const existing = await client.storage.getBucket(BUCKET);
-  if (!existing.error) return;
-  const created = await client.storage.createBucket(BUCKET, {
+  const options = {
     public: false,
-    fileSizeLimit: "1048576",
-    allowedMimeTypes: ["application/json"],
-  });
+    fileSizeLimit: String(MAX_ENCRYPTED_ATTACHMENT_BYTES),
+    allowedMimeTypes: ["application/json", "application/octet-stream"],
+  };
+  if (!existing.error) {
+    const updated = await client.storage.updateBucket(BUCKET, options);
+    if (updated.error) throw updated.error;
+    return;
+  }
+  const created = await client.storage.createBucket(BUCKET, options);
   if (created.error && !created.error.message.toLowerCase().includes("already exists")) throw created.error;
 }
 
@@ -192,12 +233,24 @@ function messagePath(conversationId: number, messageId: number) {
   return `conversations/${conversationId}/messages/${messageId}.json`;
 }
 
+function attachmentPath(conversationId: number, attachmentId: number) {
+  return `attachments/${conversationId}/${attachmentId}.bin`;
+}
+
 function messageIndexPath(subject: string, messageId: number) {
   return `inboxes/${subject}/messages/${messageId}.json`;
 }
 
 function notificationPath(subject: string, notificationId: number) {
   return `inboxes/${subject}/notifications/${notificationId}.json`;
+}
+
+function messageRequestPath(subject: string, requestId: number) {
+  return `inboxes/${subject}/requests/${requestId}.json`;
+}
+
+function blockPath(subject: string, blockedSubject: string) {
+  return `inboxes/${subject}/blocks/${blockedSubject}.json`;
 }
 
 async function readJson<T>(path: string): Promise<T | undefined> {
@@ -220,6 +273,25 @@ async function writeJson(path: string, value: unknown) {
     cacheControl: "no-store",
   });
   if (error) throw error;
+}
+
+async function writeBinary(path: string, bytes: Uint8Array) {
+  const store = await getStore();
+  if (!store) throw new Error("SecureChat private storage is unavailable");
+  const { error } = await store.storage.from(BUCKET).upload(path, bytes, {
+    upsert: false,
+    contentType: "application/octet-stream",
+    cacheControl: "no-store",
+  });
+  if (error) throw error;
+}
+
+async function readBinary(path: string) {
+  const store = await getStore();
+  if (!store) throw new Error("SecureChat private storage is unavailable");
+  const { data, error } = await store.storage.from(BUCKET).download(path);
+  if (error) throw error;
+  return new Uint8Array(await data.arrayBuffer());
 }
 
 async function listJson<T>(prefix: string): Promise<T[]> {
@@ -251,6 +323,7 @@ function profileFromAuthUser(user: SupabaseAuthUser, previous?: RemoteProfile): 
     matricNumber,
     role: previous?.role ?? "user",
     publicKey: previous?.publicKey ?? null,
+    readReceiptsEnabled: previous?.readReceiptsEnabled ?? true,
     lastSeenAt: previous?.lastSeenAt ?? null,
     isOnline: previous?.isOnline ?? false,
     createdAt: previous?.createdAt ?? user.created_at ?? timestamp,
@@ -303,6 +376,7 @@ async function ensureProfile(input: { openId: string; email: string | null; name
     matricNumber: input.matricNumber.toUpperCase(),
     role: previous?.role ?? "user",
     publicKey: previous?.publicKey ?? null,
+    readReceiptsEnabled: previous?.readReceiptsEnabled ?? true,
     lastSeenAt: previous?.lastSeenAt ?? null,
     isOnline: previous?.isOnline ?? false,
     createdAt: previous?.createdAt ?? timestamp,
@@ -386,7 +460,7 @@ export async function searchUsers(currentUserId: number, query: string) {
   return profiles.filter((profile) => profile.id !== currentUserId)
     .filter((profile) => !needle || `${profile.name ?? ""} ${profile.email ?? ""} ${profile.matricNumber}`.toLowerCase().includes(needle))
     .slice(0, 30)
-    .map((profile) => ({ id: profile.id, name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt }));
+    .map((profile) => ({ id: profile.id, subject: subjectFromOpenId(profile.openId), name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt }));
 }
 
 async function updateProfileForUserId(userId: number, update: (profile: RemoteProfile) => RemoteProfile) {
@@ -407,8 +481,112 @@ export async function setPublicKey(userId: number, publicKey: string) {
   await updateProfileForUserId(userId, (profile) => ({ ...profile, publicKey, updatedAt: now() }));
 }
 
+export async function getProfileSettings(userId: number) {
+  const subject = await subjectForUserId(userId);
+  const profile = await readJson<RemoteProfile>(profilePath(subject));
+  if (!profile) throw new Error("SecureChat profile is unavailable");
+  return {
+    name: profile.name,
+    email: profile.email,
+    matricNumber: profile.matricNumber,
+    readReceiptsEnabled: profile.readReceiptsEnabled ?? true,
+  };
+}
+
+export async function updatePrivacySettings(userId: number, input: { readReceiptsEnabled: boolean }) {
+  const profile = await updateProfileForUserId(userId, (current) => ({
+    ...current,
+    readReceiptsEnabled: input.readReceiptsEnabled,
+    updatedAt: now(),
+  }));
+  return { readReceiptsEnabled: profile.readReceiptsEnabled };
+}
+
+async function isBlocked(subject: string, blockedSubject: string) {
+  const record = await readJson<BlockRecord>(blockPath(subject, blockedSubject));
+  return record?.subject === subject && record.blockedSubject === blockedSubject;
+}
+
+export async function isDirectContactBlocked(firstUserId: number, secondUserId: number) {
+  const [firstSubject, secondSubject] = await Promise.all([subjectForUserId(firstUserId), subjectForUserId(secondUserId)]);
+  return (await isBlocked(firstSubject, secondSubject)) || (await isBlocked(secondSubject, firstSubject));
+}
+
+async function assertDirectContactAllowed(firstUserId: number, secondUserId: number) {
+  if (await isDirectContactBlocked(firstUserId, secondUserId)) throw new Error("This contact is unavailable");
+}
+
+export async function listMessageRequests(userId: number) {
+  const recipientSubject = await subjectForUserId(userId);
+  const requests = await listJson<StoredMessageRequest>(`inboxes/${recipientSubject}/requests`);
+  const pending = requests.filter((request) => request.status === "pending").sort((first, second) => second.createdAt.localeCompare(first.createdAt));
+  return Promise.all(pending.map(async (request) => ({
+    id: request.id,
+    createdAt: new Date(request.createdAt),
+    sender: await getUserByOpenId(`supabase:${request.senderSubject}`),
+  }))).then((items) => items.filter((item): item is { id: number; createdAt: Date; sender: User } => Boolean(item.sender)));
+}
+
+export async function createMessageRequest(userId: number, otherUserId: number) {
+  if (userId === otherUserId) throw new Error("You cannot message yourself");
+  await assertDirectContactAllowed(userId, otherUserId);
+  const [senderSubject, recipientSubject] = await Promise.all([subjectForUserId(userId), subjectForUserId(otherUserId)]);
+  const id = directConversationId(senderSubject, recipientSubject);
+  const existing = await readJson<StoredMessageRequest>(messageRequestPath(recipientSubject, id));
+  if (existing?.status === "pending") return { requestId: id, status: "pending" as const };
+  const request: StoredMessageRequest = { id, senderSubject, recipientSubject, createdAt: now(), status: "pending" };
+  await writeJson(messageRequestPath(recipientSubject, id), request);
+  return { requestId: id, status: "pending" as const };
+}
+
+export async function respondToMessageRequest(userId: number, requestId: number, action: "accept" | "decline") {
+  const recipientSubject = await subjectForUserId(userId);
+  const request = await readJson<StoredMessageRequest>(messageRequestPath(recipientSubject, requestId));
+  if (!request || request.recipientSubject !== recipientSubject || request.status !== "pending") throw new Error("Message request is unavailable");
+  const nextStatus = action === "accept" ? "accepted" : "declined";
+  await writeJson(messageRequestPath(recipientSubject, requestId), { ...request, status: nextStatus });
+  if (action === "decline") return { conversationId: null };
+  const senderId = numericId(request.senderSubject);
+  return { conversationId: await getOrCreateDirectConversation(userId, senderId) };
+}
+
+export async function blockUser(userId: number, otherUserId: number) {
+  if (userId === otherUserId) throw new Error("You cannot block yourself");
+  const [subject, blockedSubject] = await Promise.all([subjectForUserId(userId), subjectForUserId(otherUserId)]);
+  await writeJson(blockPath(subject, blockedSubject), { subject, blockedSubject, createdAt: now() } satisfies BlockRecord);
+}
+
+export async function unblockUser(userId: number, otherUserId: number) {
+  const [subject, blockedSubject] = await Promise.all([subjectForUserId(userId), subjectForUserId(otherUserId)]);
+  const current = await readJson<BlockRecord>(blockPath(subject, blockedSubject));
+  if (current) await writeJson(blockPath(subject, blockedSubject), { ...current, blockedSubject: "released", subject: "released" });
+}
+
+export async function listBlockedUsers(userId: number) {
+  const subject = await subjectForUserId(userId);
+  const records = await listJson<BlockRecord>(`inboxes/${subject}/blocks`);
+  return Promise.all(records.filter((record) => record.subject === subject && record.blockedSubject !== "released").map(async (record) => getUserByOpenId(`supabase:${record.blockedSubject}`))).then((profiles) => profiles.filter((profile): profile is User => Boolean(profile)));
+}
+
+export async function setConversationPreference(userId: number, conversationId: number, preference: "pinned" | "muted" | "hidden", value: boolean) {
+  const subject = await subjectForUserId(userId);
+  const current = await readJson<ConversationIndex>(conversationIndexPath(subject, conversationId));
+  if (!current) throw new Error("Conversation is unavailable");
+  await writeConversationIndex(subject, { ...current, [preference]: value, updatedAt: now() });
+}
+
 async function getConversationInfo(conversationId: number) {
-  return readJson<ConversationInfo>(conversationInfoPath(conversationId));
+  const conversation = await readJson<ConversationInfo>(conversationInfoPath(conversationId));
+  if (!conversation) return undefined;
+  return {
+    ...conversation,
+    kind: conversation.kind ?? "direct",
+    title: conversation.title ?? null,
+    ownerSubject: conversation.ownerSubject ?? conversation.participants[0] ?? "",
+    groupKeyVersion: conversation.groupKeyVersion ?? "v1",
+    groupKeyEnvelopes: conversation.groupKeyEnvelopes ?? {},
+    groupKeyEnvelopesByVersion: conversation.groupKeyEnvelopesByVersion ?? { [conversation.groupKeyVersion ?? "v1"]: conversation.groupKeyEnvelopes ?? {} },
+  };
 }
 
 async function subjectForUserId(userId: number) {
@@ -431,6 +609,16 @@ async function writeConversationIndex(subject: string, index: ConversationIndex)
   await writeJson(conversationIndexPath(subject, index.conversationId), index);
 }
 
+async function upsertConversationIndex(subject: string, index: Omit<ConversationIndex, "pinned" | "muted" | "hidden"> & Partial<Pick<ConversationIndex, "pinned" | "muted" | "hidden">>) {
+  const existing = await readJson<ConversationIndex>(conversationIndexPath(subject, index.conversationId));
+  await writeConversationIndex(subject, {
+    ...index,
+    pinned: index.pinned ?? existing?.pinned ?? false,
+    muted: index.muted ?? existing?.muted ?? false,
+    hidden: index.hidden ?? false,
+  });
+}
+
 export async function getOrCreateDirectConversation(userId: number, otherUserId: number) {
   if (userId === otherUserId) throw new Error("You cannot start a conversation with yourself");
   const subject = await subjectForUserId(userId);
@@ -440,27 +628,116 @@ export async function getOrCreateDirectConversation(userId: number, otherUserId:
   const timestamp = now();
   const conversation: ConversationInfo = existing ?? {
     id: conversationId,
-    participants: [subject, otherSubject].sort() as [string, string],
+    kind: "direct",
+    title: null,
+    participants: [subject, otherSubject].sort(),
+    ownerSubject: subject,
+    groupKeyVersion: "v1",
+    groupKeyEnvelopes: {},
+    groupKeyEnvelopesByVersion: {},
     createdAt: timestamp,
     updatedAt: timestamp,
   };
   if (!existing) await writeJson(conversationInfoPath(conversationId), conversation);
   await Promise.all([
-    writeConversationIndex(subject, { conversationId, peerSubject: otherSubject, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null }),
-    writeConversationIndex(otherSubject, { conversationId, peerSubject: subject, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null }),
+    upsertConversationIndex(subject, { conversationId, peerSubject: otherSubject, kind: "direct", title: null, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null, hidden: false }),
+    upsertConversationIndex(otherSubject, { conversationId, peerSubject: subject, kind: "direct", title: null, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null, hidden: false }),
   ]);
   return conversationId;
+}
+
+export async function createGroupConversation(userId: number, input: { title: string; participantIds: number[]; groupKeyEnvelopes: Record<string, { ciphertext: string; iv: string; ownerPublicKey: string }> }) {
+  const ownerSubject = await subjectForUserId(userId);
+  const participantSubjects = Array.from(new Set([ownerSubject, ...(await Promise.all(input.participantIds.map(subjectForUserId)))]));
+  if (participantSubjects.length < 3) throw new Error("A group needs at least three members");
+  if (participantSubjects.length > 20) throw new Error("Groups are limited to 20 members");
+  if (!input.title.trim()) throw new Error("Group name is required");
+  if (participantSubjects.some((subject) => !input.groupKeyEnvelopes[subject])) throw new Error("Each group member needs an encrypted key envelope");
+  const id = messageId();
+  const timestamp = now();
+  const conversation: ConversationInfo = {
+    id,
+    kind: "group",
+    title: input.title.trim().slice(0, 80),
+    participants: participantSubjects,
+    ownerSubject,
+    groupKeyVersion: "v1",
+    groupKeyEnvelopes: input.groupKeyEnvelopes,
+    groupKeyEnvelopesByVersion: { v1: input.groupKeyEnvelopes },
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  await writeJson(conversationInfoPath(id), conversation);
+  await Promise.all(participantSubjects.map((subject) => upsertConversationIndex(subject, {
+    conversationId: id,
+    peerSubject: ownerSubject,
+    kind: "group",
+    title: conversation.title,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    latestMessageAt: null,
+    hidden: false,
+  })));
+  return id;
+}
+
+export async function addGroupParticipant(userId: number, input: { conversationId: number; userId: number; groupKeyEnvelopes: Record<string, { ciphertext: string; iv: string; ownerPublicKey: string }> }) {
+  const subject = await subjectForUserId(userId);
+  const newSubject = await subjectForUserId(input.userId);
+  const conversation = await getConversationInfo(input.conversationId);
+  if (!conversation || conversation.kind !== "group") throw new Error("Group conversation was not found");
+  if (conversation.ownerSubject !== subject) throw new Error("Only the group creator can add members");
+  if (conversation.participants.includes(newSubject)) return;
+  const participants = [...conversation.participants, newSubject];
+  if (participants.length > 20) throw new Error("Groups are limited to 20 members");
+  if (participants.some((participant) => !input.groupKeyEnvelopes[participant])) throw new Error("Adding a member requires fresh encrypted key envelopes");
+  const nextVersion = `v${Number(conversation.groupKeyVersion?.slice(1) ?? "1") + 1}`;
+  const updated: ConversationInfo = { ...conversation, participants, groupKeyVersion: nextVersion, groupKeyEnvelopes: input.groupKeyEnvelopes, groupKeyEnvelopesByVersion: { ...(conversation.groupKeyEnvelopesByVersion ?? { [conversation.groupKeyVersion ?? "v1"]: conversation.groupKeyEnvelopes }), [nextVersion]: input.groupKeyEnvelopes }, updatedAt: now() };
+  await writeJson(conversationInfoPath(input.conversationId), updated);
+  await upsertConversationIndex(newSubject, {
+    conversationId: input.conversationId,
+    peerSubject: conversation.ownerSubject,
+    kind: "group",
+    title: conversation.title,
+    createdAt: conversation.createdAt,
+    updatedAt: updated.updatedAt,
+    latestMessageAt: null,
+    hidden: false,
+  });
+  return { keyVersion: nextVersion };
+}
+
+export async function listGroupParticipants(userId: number, conversationId: number) {
+  await assertParticipant(userId, conversationId);
+  const conversation = await getConversationInfo(conversationId);
+  if (!conversation || conversation.kind !== "group") throw new Error("Group conversation was not found");
+  const profiles = await Promise.all(conversation.participants.map((subject) => getUserByOpenId(`supabase:${subject}`)));
+  return profiles.filter((profile): profile is User => Boolean(profile)).map((profile) => ({
+    id: profile.id,
+    subject: subjectFromOpenId(profile.openId),
+    name: profile.name,
+    email: profile.email,
+    publicKey: profile.publicKey,
+    isOwner: subjectFromOpenId(profile.openId) === conversation.ownerSubject,
+  }));
 }
 
 export async function listConversations(userId: number) {
   const subject = await subjectForUserId(userId);
   const indexes = await listJson<ConversationIndex>(`inboxes/${subject}/conversations`);
-  const items = await Promise.all(indexes.map(async (index) => ({
+  const items = await Promise.all(indexes.filter((index) => !index.hidden).map(async (index) => ({
     conversationId: index.conversationId,
-    peer: await getUserByOpenId(`supabase:${index.peerSubject}`),
+    kind: index.kind ?? "direct",
+    title: index.title ?? null,
+    pinned: index.pinned ?? false,
+    muted: index.muted ?? false,
+    peer: index.kind === "direct" ? await getUserByOpenId(`supabase:${index.peerSubject}`) : await getUserByOpenId(`supabase:${index.peerSubject}`),
+    groupKeyVersion: (await getConversationInfo(index.conversationId))?.groupKeyVersion ?? "v1",
+    groupKeyEnvelope: (await getConversationInfo(index.conversationId))?.groupKeyEnvelopes[subject] ?? null,
+    groupKeyEnvelopes: Object.fromEntries(Object.entries((await getConversationInfo(index.conversationId))?.groupKeyEnvelopesByVersion ?? {}).map(([version, envelopes]) => [version, envelopes[subject] ?? null])),
     latestMessageAt: asDate(index.latestMessageAt),
   })));
-  return items.filter((item) => Boolean(item.peer)).sort((a, b) => (b.latestMessageAt?.getTime() ?? 0) - (a.latestMessageAt?.getTime() ?? 0));
+  return items.filter((item) => Boolean(item.peer)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.latestMessageAt?.getTime() ?? 0) - (a.latestMessageAt?.getTime() ?? 0));
 }
 
 function materializeMessage(message: StoredMessage) {
@@ -478,15 +755,51 @@ export async function listEncryptedMessages(userId: number, conversationId: numb
   return messages.sort((first, second) => first.createdAt.localeCompare(second.createdAt)).map(materializeMessage);
 }
 
+export async function uploadEncryptedAttachment(userId: number, input: { conversationId: number; ciphertext: string; iv: string; name: string; mediaType: string; size: number; kind: "file" | "voice" }) {
+  await assertParticipant(userId, input.conversationId);
+  const bytes = Buffer.from(input.ciphertext, "base64");
+  if (!bytes.length || bytes.length > MAX_ENCRYPTED_ATTACHMENT_BYTES) throw new Error("Encrypted attachment must be smaller than 3 MB");
+  if (input.size < 1 || input.size > MAX_ENCRYPTED_ATTACHMENT_BYTES) throw new Error("Attachment size is invalid");
+  const id = messageId();
+  const ciphertextPath = attachmentPath(input.conversationId, id);
+  await writeBinary(ciphertextPath, bytes);
+  return {
+    id,
+    name: input.name.trim().slice(0, 120) || (input.kind === "voice" ? "Voice note" : "Attachment"),
+    mediaType: input.mediaType.trim().slice(0, 120) || "application/octet-stream",
+    size: input.size,
+    ciphertextPath,
+    iv: input.iv,
+    kind: input.kind,
+  } satisfies NonNullable<StoredMessage["attachment"]>;
+}
+
+export async function downloadEncryptedAttachment(userId: number, input: { conversationId: number; attachmentId: number }) {
+  await assertParticipant(userId, input.conversationId);
+  const messages = await listJson<StoredMessage>(`conversations/${input.conversationId}/messages`);
+  const attachment = messages.find((message) => message.attachment?.id === input.attachmentId)?.attachment;
+  if (!attachment) throw new Error("Attachment was not found");
+  const bytes = await readBinary(attachment.ciphertextPath);
+  return {
+    attachment,
+    ciphertext: Buffer.from(bytes).toString("base64"),
+  };
+}
+
 function messageId() {
   return Date.now() * 1000 + randomInt(0, 1000);
 }
 
-export async function createEncryptedMessage(input: { userId: number; conversationId: number; ciphertext: string; iv: string; keyVersion?: string }) {
+export async function createEncryptedMessage(input: { userId: number; conversationId: number; ciphertext: string; iv: string; keyVersion?: string; attachment?: NonNullable<StoredMessage["attachment"]> | null }) {
   await assertParticipant(input.userId, input.conversationId);
   const senderSubject = await subjectForUserId(input.userId);
   const conversation = await getConversationInfo(input.conversationId);
   if (!conversation) throw new Error("Conversation was not found");
+  if (conversation.kind === "direct") {
+    const recipientSubject = conversation.participants.find((subject) => subject !== senderSubject);
+    if (!recipientSubject) throw new Error("Conversation recipient was not found");
+    await assertDirectContactAllowed(input.userId, numericId(recipientSubject));
+  }
   const id = messageId();
   const timestamp = now();
   const message: StoredMessage = {
@@ -500,18 +813,23 @@ export async function createEncryptedMessage(input: { userId: number; conversati
     createdAt: timestamp,
     deliveredAt: null,
     readAt: null,
+    attachment: input.attachment ?? null,
   };
   const recipients = conversation.participants.filter((subject) => subject !== senderSubject);
   await writeJson(messagePath(input.conversationId, id), message);
   await Promise.all(conversation.participants.map((subject) => writeJson(messageIndexPath(subject, id), { conversationId: input.conversationId })));
-  await Promise.all(conversation.participants.map((subject) => writeConversationIndex(subject, {
+  await Promise.all(conversation.participants.map((subject) => upsertConversationIndex(subject, {
     conversationId: input.conversationId,
     peerSubject: subject === senderSubject ? recipients[0] : senderSubject,
+    kind: conversation.kind,
+    title: conversation.title,
     createdAt: conversation.createdAt,
     updatedAt: timestamp,
     latestMessageAt: timestamp,
   })));
   await Promise.all(recipients.map(async (recipient) => {
+    const recipientIndex = await readJson<ConversationIndex>(conversationIndexPath(recipient, input.conversationId));
+    if (recipientIndex?.muted) return;
     const notification = notificationFor("new-message");
     const value: StoredNotification = { id, userSubject: recipient, type: notification.type, title: notification.title, body: "A protected message is waiting in SecureChat.", conversationId: input.conversationId, isRead: false, createdAt: timestamp };
     await writeJson(notificationPath(recipient, id), value);
@@ -521,6 +839,8 @@ export async function createEncryptedMessage(input: { userId: number; conversati
 
 export async function updateMessageStatus(userId: number, messageIdValue: number, status: "delivered" | "read") {
   const subject = await subjectForUserId(userId);
+  const profile = await readJson<RemoteProfile>(profilePath(subject));
+  if (profile?.readReceiptsEnabled === false) return;
   const index = await readJson<{ conversationId: number }>(messageIndexPath(subject, messageIdValue));
   if (!index) throw new Error("Message was not found");
   await assertParticipant(userId, index.conversationId);

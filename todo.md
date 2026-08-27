@@ -146,3 +146,12 @@
 - [x] Remove the unnecessary “University communications / v1.0” workspace subtitle
 - [x] Remove the unexplained “Local key present” strip from the Messages sidebar
 - [x] Prevent the misleading signed-in fallback screen from flashing during authenticated page refresh
+- [x] Define and confirm a compact pre-report SecureChat feature set that strengthens the live project demonstration
+- [x] Add a profile and settings screen with privacy controls
+- [x] Add first-contact message requests with accept and decline actions
+- [x] Add user blocking that prevents direct contact and future message delivery
+- [x] Add per-conversation pin, mute, and clear-view actions
+- [x] Add secure group chat creation, membership management, and group delivery
+- [x] Add browser-encrypted attachment sharing with private media persistence
+- [x] Add browser-encrypted recorded voice notes with in-chat playback
+- [ ] Deploy and verify the expanded SecureChat platform feature set before beginning report preparation
