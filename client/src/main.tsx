@@ -5,24 +5,22 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import { initializeSupabase, supabase } from "./lib/supabase";
 import App from "./App";
+import { SecureChatLogo } from "./components/SecureChatLogo";
 import "./index.css";
 
 function BootstrapState({ failed = false }: { failed?: boolean }) {
+  if (!failed) return <main className="min-h-screen blueprint-bg grid place-items-center"><div role="status" aria-label="Loading SecureChat" className="grid place-items-center animate-pulse"><SecureChatLogo size={96} /></div></main>;
   return (
     <main className="min-h-screen bg-background px-6 py-16 text-foreground">
       <section className="mx-auto max-w-lg border border-border bg-card p-8 shadow-sm">
         <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground">SecureChat</p>
-        <h1 className="mt-5 text-3xl font-semibold">{failed ? "SecureChat needs one more setup step" : "Loading SecureChat"}</h1>
+        <h1 className="mt-5 text-3xl font-semibold">SecureChat needs one more setup step</h1>
         <p className="mt-4 leading-7 text-muted-foreground">
-          {failed
-            ? "The app could not load its public authentication settings. Please refresh this page or ask the project owner to check the Vercel Supabase connection."
-            : "Connecting to the secure sign-in service…"}
+          The app could not load its public authentication settings. Please refresh this page or ask the project owner to check the Vercel Supabase connection.
         </p>
-        {failed && (
-          <button className="mt-6 rounded-md bg-foreground px-4 py-2 text-sm text-background" onClick={() => window.location.reload()}>
-            Refresh page
-          </button>
-        )}
+        <button className="mt-6 rounded-md bg-foreground px-4 py-2 text-sm text-background" onClick={() => window.location.reload()}>
+          Refresh page
+        </button>
       </section>
     </main>
   );

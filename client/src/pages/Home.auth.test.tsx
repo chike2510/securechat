@@ -14,7 +14,7 @@ const authState = vi.hoisted(() => ({
 }));
 
 const themeState = vi.hoisted(() => ({ theme: "light" as "light" | "dark", toggleTheme: vi.fn() }));
-const directoryState = vi.hoisted(() => ({ people: [] as Array<{ id: number; name: string; email: string; friendRequestStatus: "pending" | "accepted" | null }>, requestResult: { requestId: 2, status: "pending" as const, alreadyPending: false } }));
+const directoryState = vi.hoisted(() => ({ people: [] as Array<{ id: number; name: string; username: string; friendRequestStatus: "pending" | "accepted" | null }>, requestResult: { requestId: 2, status: "pending" as const, alreadyPending: false } }));
 const mutation = () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(1), isPending: false });
 const query = () => ({ data: [], isLoading: false, error: null });
 
@@ -45,6 +45,7 @@ vi.mock("@/lib/trpc", () => ({
       createGroup: { useMutation: mutation },
       conversations: { useQuery: query },
       searchUsers: { useQuery: () => ({ data: directoryState.people, isLoading: false, error: null }) },
+      friendProfile: { useQuery: query },
       messages: { useQuery: query },
       notifications: { useQuery: query },
       profileSettings: { useQuery: query },
@@ -93,7 +94,7 @@ describe("Home authenticated handoff", () => {
     const { default: Home } = await import("./Home");
     render(<Home />);
 
-    expect(screen.getByRole("status", { name: "Loading SecureChat" }).textContent).toBe("SC");
+    expect(screen.getByRole("status", { name: "Loading SecureChat" }).querySelector('img[alt="SecureChat"]')).toBeTruthy();
     expect(screen.queryByText("Loading SecureChat")).toBeNull();
   });
 
@@ -123,16 +124,14 @@ describe("Home authenticated handoff", () => {
     expect(logout).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a sent friend request visible and unavailable for a second tap", async () => {
-    directoryState.people = [{ id: 2, name: "Elisha Onovo", email: "elisha@example.com", friendRequestStatus: null }];
+  it("shows a public username instead of an email in Find friend", async () => {
+    directoryState.people = [{ id: 2, name: "Elisha Onovo", username: "elisha", friendRequestStatus: null }];
     const { default: Home } = await import("./Home");
     render(<Home />);
 
     fireEvent.click(screen.getByRole("button", { name: "Find friend" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add Elisha Onovo as a friend" }));
-
-    await waitFor(() => expect(screen.getByRole("button", { name: "Friend request sent to Elisha Onovo" })).toBeTruthy());
-    expect((screen.getByRole("button", { name: "Friend request sent to Elisha Onovo" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("@elisha")).toBeTruthy();
+    expect(screen.queryByText("elisha@example.com")).toBeNull();
   });
 
   it("keeps a verified user inside a truthful workspace state while the message database is unavailable", async () => {

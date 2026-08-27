@@ -33,6 +33,7 @@ import AuthLanding from "./AuthLanding";
 function completeRegistrationForm() {
   fireEvent.click(screen.getByRole("button", { name: "Create a new account" }));
   fireEvent.change(screen.getByPlaceholderText("Name"), { target: { value: "Ada FUPRE" } });
+  fireEvent.change(screen.getByPlaceholderText("Username"), { target: { value: "ada.fupre" } });
   fireEvent.change(screen.getByPlaceholderText("Matric number"), { target: { value: "CSC/2024/001" } });
   fireEvent.change(screen.getByPlaceholderText("Email address"), { target: { value: "ada@example.com" } });
   fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "password123" } });
@@ -56,6 +57,7 @@ describe("AuthLanding email OTP flow", () => {
     expect(await screen.findByText("Confirm your email")).toBeTruthy();
     expect(screen.getByText(/ada@example.com/)).toBeTruthy();
     expect(authMocks.signUp).toHaveBeenCalledOnce();
+    expect(authMocks.signUp).toHaveBeenCalledWith(expect.objectContaining({ options: expect.objectContaining({ data: expect.objectContaining({ username: "ada.fupre" }) }) }));
     expect(screen.queryByText("Account created. Check your email")).toBeNull();
   });
 

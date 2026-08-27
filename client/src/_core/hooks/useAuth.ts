@@ -5,11 +5,12 @@ import type { Session } from "@supabase/supabase-js";
 
 function sessionWorkspaceUser(session: Session | null) {
   if (!session) return null;
-  const metadata = session.user.user_metadata as { name?: unknown; matricNumber?: unknown; matric_number?: unknown };
+  const metadata = session.user.user_metadata as { name?: unknown; username?: unknown; matricNumber?: unknown; matric_number?: unknown };
   return {
     id: -1,
     openId: session.user.id,
     name: typeof metadata.name === "string" ? metadata.name : session.user.email ?? "University user",
+    username: typeof metadata.username === "string" ? metadata.username : null,
     email: session.user.email ?? null,
     universityEmail: session.user.email ?? null,
     matricNumber: typeof metadata.matricNumber === "string" ? metadata.matricNumber : typeof metadata.matric_number === "string" ? metadata.matric_number : "PENDING",

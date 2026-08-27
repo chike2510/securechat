@@ -14,11 +14,12 @@ describe("Supabase profile reuse", () => {
   });
 
   it("lists another active profile while excluding only the signed-in account", () => {
-    const elisha = { id: 14, name: "Elisha Onovo", email: "elisha@example.com", matricNumber: "COS/2024/0117" };
+    const elisha = { id: 14, name: "Elisha Onovo", username: "elisha", email: "elisha@example.com", matricNumber: "COS/2024/0117" };
 
     expect(isDiscoverableProfile(elisha, 8, "")).toBe(true);
     expect(isDiscoverableProfile(elisha, 8, "elisha")).toBe(true);
     expect(isDiscoverableProfile(elisha, 8, "COS/2024")).toBe(true);
+    expect(isDiscoverableProfile(elisha, 8, "@elisha")).toBe(true);
     expect(isDiscoverableProfile(elisha, 14, "elisha")).toBe(false);
   });
 

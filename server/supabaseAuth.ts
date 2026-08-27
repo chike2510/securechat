@@ -21,6 +21,11 @@ export function matricNumberFromSupabaseMetadata(metadata: Record<string, unknow
   return typeof value === "string" && value.trim() ? value.trim().toUpperCase() : null;
 }
 
+export function usernameFromSupabaseMetadata(metadata: Record<string, unknown>) {
+  const value = metadata.username;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export async function signInSupabaseWithMatric(matricNumber: string, password: string) {
   if (!supabase) return { error: "Authentication is not configured for this deployment." } as const;
   const profile = await getUserByMatricNumber(matricNumber);
@@ -55,6 +60,7 @@ export async function authenticateSupabaseRequest(headers: IncomingHttpHeaders |
       openId,
       email: data.user.email ?? null,
       name: String(data.user.user_metadata?.name ?? data.user.email ?? "SecureChat user"),
+      username: usernameFromSupabaseMetadata(data.user.user_metadata ?? {}),
       matricNumber,
     });
   } catch (provisioningError) {

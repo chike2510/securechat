@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { isEightDigitOtp, normalizeOtp } from "../../../shared/auth";
 import { toast } from "sonner";
 import { ArrowUpRight, LockKeyhole, MailCheck } from "lucide-react";
+import { SecureChatLogo } from "@/components/SecureChatLogo";
 
 function friendlyAuthError(message: string) {
   if (message.toLowerCase().includes("already registered")) return "That email is already registered. Try signing in.";
@@ -21,6 +22,7 @@ export default function AuthLanding() {
   const [email, setEmail] = useState("");
   const [loginIdentifier, setLoginIdentifier] = useState("");
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [verificationOpen, setVerificationOpen] = useState(false);
@@ -76,7 +78,7 @@ export default function AuthLanding() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/confirmed`,
-            data: { name: name.trim(), matricNumber: matricNumber.trim().toUpperCase() },
+            data: { name: name.trim(), username: username.trim().replace(/^@+/, ""), matricNumber: matricNumber.trim().toUpperCase() },
           },
         });
         if (error) throw error;
@@ -114,7 +116,7 @@ export default function AuthLanding() {
       <div className="max-w-5xl w-full grid lg:grid-cols-[1fr_410px] gap-8 lg:gap-16 items-center">
         <section className="order-2 lg:order-1 px-1 sm:px-4">
           <div className="flex items-center gap-3 mb-8 lg:mb-14">
-            <div className="h-10 w-10 bg-[#101722] text-white grid place-items-center font-mono font-bold">SC</div>
+            <SecureChatLogo size={44} />
             <span className="font-black text-xl tracking-tight">SecureChat</span>
           </div>
           <p className="font-mono text-[10px] uppercase tracking-[0.26em] text-slate-500 mb-4">Private campus chat</p>
@@ -152,6 +154,7 @@ export default function AuthLanding() {
             {registering && (
               <>
                 <Input required value={name} onChange={event => setName(event.target.value)} placeholder="Name" className="rounded-sm h-11" />
+                <Input required value={username} onChange={event => setUsername(event.target.value.replace(/^@+/, ""))} placeholder="Username" minLength={3} maxLength={24} pattern="[A-Za-z0-9_.]+" className="rounded-sm h-11" />
                 <Input required value={matricNumber} onChange={event => setMatricNumber(event.target.value)} placeholder="Matric number" className="rounded-sm h-11 font-mono" />
               </>
             )}

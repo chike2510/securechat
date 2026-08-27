@@ -1,12 +1,13 @@
 import { Link } from "wouter";
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { SecureChatLogo } from "@/components/SecureChatLogo";
 
 export default function EmailConfirmed() {
   return (
     <main className="min-h-screen blueprint-bg flex items-center justify-center p-4 sm:p-6">
       <section className="w-full max-w-md bg-white/95 border border-slate-900/15 shadow-2xl p-7 sm:p-9">
         <div className="flex items-center gap-3 mb-8">
-          <div className="h-10 w-10 bg-[#101722] text-white grid place-items-center font-mono font-bold">SC</div>
+          <SecureChatLogo size={44} />
           <span className="font-black text-xl tracking-tight">SecureChat</span>
         </div>
         <CheckCircle2 className="h-9 w-9 text-[#ff4f87] mb-5" />

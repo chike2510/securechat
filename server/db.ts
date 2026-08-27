@@ -21,6 +21,7 @@ type StorageEnv = {
 type RemoteProfile = {
   subject: string;
   name: string | null;
+  username: string;
   email: string | null;
   matricNumber: string;
   role: "user" | "admin";
@@ -315,9 +316,15 @@ async function listJson<T>(prefix: string): Promise<T[]> {
   }, []);
 }
 
-function metadataString(user: SupabaseAuthUser, key: "name" | "matricNumber") {
+function metadataString(user: SupabaseAuthUser, key: "name" | "username" | "matricNumber") {
   const value = user.user_metadata?.[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizedUsername(value: string | null | undefined, subject: string) {
+  const cleaned = (value ?? "").trim().replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9_.]/g, "").slice(0, 24);
+  if (cleaned.length >= 3) return cleaned;
+  return `user${createHash("sha256").update(subject).digest("hex").slice(0, 6)}`;
 }
 
 function profileFromAuthUser(user: SupabaseAuthUser, previous?: RemoteProfile): RemoteProfile | undefined {
@@ -327,6 +334,7 @@ function profileFromAuthUser(user: SupabaseAuthUser, previous?: RemoteProfile): 
   return {
     subject: user.id,
     name: previous?.name ?? metadataString(user, "name") ?? user.email ?? "University user",
+    username: previous?.username ?? normalizedUsername(metadataString(user, "username"), user.id),
     email: user.email ?? previous?.email ?? null,
     matricNumber,
     role: previous?.role ?? "user",
@@ -348,6 +356,7 @@ function profileToUser(profile: RemoteProfile): User {
     id: numericId(profile.subject),
     openId: `supabase:${profile.subject}`,
     name: profile.name,
+    username: profile.username ?? normalizedUsername(profile.name, profile.subject),
     email: profile.email,
     universityEmail: profile.email,
     matricNumber: profile.matricNumber,
@@ -376,13 +385,14 @@ async function findSubjectByNumericId(id: number) {
   return users.find((user) => numericId(user.id) === id)?.id;
 }
 
-async function ensureProfile(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
+async function ensureProfile(input: { openId: string; email: string | null; name: string; username?: string | null; matricNumber: string }) {
   const subject = subjectFromOpenId(input.openId);
   const previous = await readJson<RemoteProfile>(profilePath(subject));
   const timestamp = now();
   const profile: RemoteProfile = {
     subject,
     name: previous?.name ?? input.name,
+    username: previous?.username ?? normalizedUsername(input.username, subject),
     email: input.email,
     matricNumber: input.matricNumber.toUpperCase(),
     role: previous?.role ?? "user",
@@ -407,6 +417,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     openId: user.openId,
     email: user.email ?? user.universityEmail ?? null,
     name: user.name ?? user.email ?? "University user",
+    username: user.username,
     matricNumber: user.matricNumber,
   });
 }
@@ -420,7 +431,7 @@ export function selectSupabaseProfile<T>(byOpenId: T | undefined, byMatricNumber
   return byOpenId ?? byMatricNumber ?? byEmail;
 }
 
-export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
+export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; username?: string | null; matricNumber: string }) {
   return profileToUser(await ensureProfile(input));
 }
 
@@ -477,14 +488,15 @@ export async function searchUsers(currentUserId: number, query: string) {
     const subject = subjectFromOpenId(profile.openId);
     const request = currentSubject ? await readJson<StoredMessageRequest>(messageRequestPath(subject, directConversationId(currentSubject, subject))) : undefined;
     const friendRequestStatus = currentSubject && request?.senderSubject === currentSubject ? request.status : null;
-    return { id: profile.id, subject, name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, friendRequestStatus };
+    const storedProfile = await readJson<RemoteProfile>(profilePath(subject));
+    return { id: profile.id, subject, name: profile.name, username: profile.username ?? normalizedUsername(profile.name, subject), avatarStyle: storedProfile?.avatarStyle ?? "mint", publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, friendRequestStatus };
   }));
 }
 
-export function isDiscoverableProfile(profile: Pick<User, "id" | "name" | "email" | "matricNumber">, currentUserId: number, query: string) {
-  const needle = query.trim().toLowerCase();
+export function isDiscoverableProfile(profile: Pick<User, "id" | "name" | "username" | "email" | "matricNumber">, currentUserId: number, query: string) {
+  const needle = query.trim().toLowerCase().replace(/^@+/, "");
   if (profile.id === currentUserId) return false;
-  return !needle || `${profile.name ?? ""} ${profile.email ?? ""} ${profile.matricNumber}`.toLowerCase().includes(needle);
+  return !needle || `${profile.name ?? ""} ${profile.username ?? ""} ${profile.email ?? ""} ${profile.matricNumber}`.toLowerCase().includes(needle);
 }
 
 async function updateProfileForUserId(userId: number, update: (profile: RemoteProfile) => RemoteProfile) {
@@ -513,6 +525,7 @@ export async function getProfileSettings(userId: number) {
   const image = profile.profileImagePath && store ? await store.storage.from(BUCKET).createSignedUrl(profile.profileImagePath, 60 * 15) : null;
   return {
     name: profile.name,
+    username: profile.username ?? normalizedUsername(profile.name, profile.subject),
     email: profile.email,
     matricNumber: profile.matricNumber,
     readReceiptsEnabled: profile.readReceiptsEnabled ?? true,
@@ -521,7 +534,7 @@ export async function getProfileSettings(userId: number) {
   };
 }
 
-export async function updateProfileSettings(userId: number, input: { name: string; avatarStyle: RemoteProfile["avatarStyle"]; imageData?: string | null; imageType?: NonNullable<RemoteProfile["profileImageType"]> | null; clearImage?: boolean }) {
+export async function updateProfileSettings(userId: number, input: { name: string; username?: string; avatarStyle: RemoteProfile["avatarStyle"]; imageData?: string | null; imageType?: NonNullable<RemoteProfile["profileImageType"]> | null; clearImage?: boolean }) {
   let imagePath: string | null | undefined;
   let imageType: RemoteProfile["profileImageType"] | undefined;
   if (input.imageData) {
@@ -539,12 +552,29 @@ export async function updateProfileSettings(userId: number, input: { name: strin
   const profile = await updateProfileForUserId(userId, (current) => ({
     ...current,
     name: input.name.trim(),
+    username: normalizedUsername(input.username ?? current.username, current.subject),
     avatarStyle: input.avatarStyle,
     profileImagePath: imagePath === undefined ? current.profileImagePath : imagePath,
     profileImageType: imageType === undefined ? current.profileImageType : imageType,
     updatedAt: now(),
   }));
-  return { name: profile.name, avatarStyle: profile.avatarStyle, profileImageUpdated: imagePath !== undefined };
+  return { name: profile.name, username: profile.username, avatarStyle: profile.avatarStyle, profileImageUpdated: imagePath !== undefined };
+}
+
+export async function getFriendProfile(userId: number, otherUserId: number) {
+  if (userId === otherUserId) throw new Error("This profile is unavailable");
+  await assertDirectContactAllowed(userId, otherUserId);
+  const [viewerSubject, profile] = await Promise.all([subjectForUserId(userId), getUserById(otherUserId)]);
+  if (!profile) throw new Error("This profile is unavailable");
+  const subject = subjectFromOpenId(profile.openId);
+  const conversationId = directConversationId(viewerSubject, subject);
+  const [conversation, request, storedProfile] = await Promise.all([
+    getConversationInfo(conversationId),
+    readJson<StoredMessageRequest>(messageRequestPath(subject, conversationId)),
+    readJson<RemoteProfile>(profilePath(subject)),
+  ]);
+  const relationship = conversation?.kind === "direct" && conversation.participants.includes(viewerSubject) ? "friends" as const : request?.senderSubject === viewerSubject && request.status === "pending" ? "pending" as const : "none" as const;
+  return { id: profile.id, name: profile.name, username: profile.username ?? normalizedUsername(profile.name, subject), avatarStyle: storedProfile?.avatarStyle ?? "mint", isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, relationship };
 }
 
 export async function updatePrivacySettings(userId: number, input: { readReceiptsEnabled: boolean }) {
@@ -701,6 +731,15 @@ export async function getOrCreateDirectConversation(userId: number, otherUserId:
     upsertConversationIndex(subject, { conversationId, peerSubject: otherSubject, kind: "direct", title: null, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null, hidden: false }),
     upsertConversationIndex(otherSubject, { conversationId, peerSubject: subject, kind: "direct", title: null, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null, hidden: false }),
   ]);
+  return conversationId;
+}
+
+export async function getAcceptedDirectConversation(userId: number, otherUserId: number) {
+  await assertDirectContactAllowed(userId, otherUserId);
+  const [subject, otherSubject] = await Promise.all([subjectForUserId(userId), subjectForUserId(otherUserId)]);
+  const conversationId = directConversationId(subject, otherSubject);
+  const conversation = await getConversationInfo(conversationId);
+  if (!conversation || conversation.kind !== "direct" || !conversation.participants.includes(subject) || !conversation.participants.includes(otherSubject)) throw new Error("Accept the friend request before messaging");
   return conversationId;
 }
 

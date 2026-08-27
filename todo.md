@@ -172,6 +172,15 @@
 - [x] Match the Find friend action button size to New group on mobile
 - [x] Show a visible pending friend-request state on a person’s card after it is sent
 - [x] Prevent duplicate friend requests while the recipient has not accepted or declined
+- [x] Create and approve a proper SecureChat logo before replacing the SC loading mark
+- [x] Create and approve a mockup for another person’s profile with friend and message actions
+- [x] Create and approve a mockup for the direct chat interface
+- [x] Add a username field and show usernames instead of emails in friend discovery after mockup approval
+- [x] Replace the first logo concept with a more distinctive SecureChat mark before using it in the app
+- [x] Implement the approved tap-to-open other-user profile with Message and friend-status actions
+- [x] Apply the approved direct-chat visual direction after the unique logo is approved
+- [x] Replace the plain SC mark with the approved signal-knot logo across loading, header, and app identity
+- [ ] Verify the approved logo, profile, username, and chat presentation on mobile before deployment
 - [x] Confirm the primary Supabase integration remains intact after the stale Preview Branch event; a later Vercel deployment completed successfully
 - [x] Confirm the People directory is live after the successful later deployment
 - [ ] Visually verify on production that the initial loader shows only the SC logo with no visible loading text
