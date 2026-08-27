@@ -128,16 +128,16 @@
 - [x] Remove the supplied credential from the test browser session after testing and advise a password change
 - [x] Deploy the verifier environment fallback and retest the authorized account’s authenticated auth.me response
 - [x] Fix `/api/config` so Vite-prefixed Supabase URL and public-key variables load the deployed auth screen
-- [ ] Deploy and verify the SecureChat Storage Postgres driver migration against the connected Vercel database
-- [ ] Apply the SecureChat schema to Storage Postgres and verify profile provisioning with the authorized account
+- [x] Superseded: Storage Postgres driver migration was replaced with the verified Supabase private-store adapter
+- [x] Superseded: Storage Postgres schema provisioning was replaced with private Supabase profile storage
 - [x] Add a safe production database-readiness diagnostic to identify the remaining Storage Postgres provisioning failure
 - [x] Ensure the database readiness endpoint returns a safe structured failure response when initialization fails
-- [ ] Switch SecureChat from the failing Storage Postgres migration URL to the compatible Vercel application connection URL
+- [x] Superseded: Storage Postgres application-URL selection is no longer used by the Supabase private-store adapter
 - [x] Confirm which Vercel Storage Postgres connection sources are available and attempted in production
-- [ ] Reconnect or refresh the Vercel Storage Postgres integration so its injected credentials authenticate successfully
+- [x] Superseded: the failing Storage Postgres credentials are no longer used by the verified Supabase private-store adapter
 - [x] Allow a verified Supabase session to enter the SecureChat workspace even when profile provisioning is temporarily unavailable
 - [x] Show a clear in-workspace database limitation state instead of returning a verified user to login
-- [ ] Restore production database/profile provisioning so verified Supabase users reach the full Messages chat workspace instead of the signed-in fallback shell
+- [x] Restore production database/profile provisioning so verified Supabase users reach the full Messages chat workspace instead of the signed-in fallback shell
 - [ ] Verify a real OTP-confirmed production account loads conversations and can enter active chat without returning to login
 - [x] Replace the failing Vercel Storage Postgres chat dependency with the existing Supabase-backed project integration
 - [x] Deploy the Supabase-backed encrypted message store and verify production readiness without exposing any server key
@@ -168,3 +168,7 @@
 - [x] Replace the initial text loading screen with a logo-only SecureChat loading state
 - [x] Repair registered-student discovery so another active SecureChat account appears in contact search
 - [x] Add a dedicated People view for browsing registered students and sending a message request
+- [x] Confirm the primary Supabase integration remains intact after the stale Preview Branch event; a later Vercel deployment completed successfully
+- [x] Confirm the People directory is live after the successful later deployment
+- [ ] Visually verify on production that the initial loader shows only the SC logo with no visible loading text
+- [ ] Verify with two real production accounts that a person appears in People, a message request is accepted, and a direct chat opens
