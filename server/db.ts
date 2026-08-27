@@ -1,225 +1,331 @@
-import { and, desc, eq, ne, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import {
-  conversationParticipants,
-  conversations,
-  encryptedMessages,
-  InsertUser,
-  messageStatuses,
-  notifications,
-  users,
-} from "../drizzle/schema.js";
-import { ENV } from "./_core/env.js";
+import { createHash, randomInt } from "node:crypto";
+import { createClient, type SupabaseClient, type User as SupabaseAuthUser } from "@supabase/supabase-js";
+import type { InsertUser, User } from "../drizzle/schema.js";
 import { advanceMessageStatus, notificationFor } from "../shared/message-lifecycle.js";
-import { assertParticipantAccess } from "./accessControl.js";
 
-type DatabaseEnv = {
-  DATABASE_URL?: string;
-  STORAGE_POSTGRES_URL_NON_POOLING?: string;
-  STORAGE_POSTGRES_PRISMA_URL?: string;
-  STORAGE_POSTGRES_URL?: string;
+const BUCKET = "securechat-private-v1";
+
+type StorageEnv = {
+  SUPABASE_URL?: string;
+  NEXT_PUBLIC_SUPABASE_URL?: string;
+  VITE_SUPABASE_URL?: string;
+  STORAGE_SUPABASE_URL?: string;
+  SUPABASE_SECRET_KEY?: string;
+  STORAGE_SUPABASE_SECRET_KEY?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+  STORAGE_SUPABASE_SERVICE_ROLE_KEY?: string;
 };
 
-type DatabaseSource = "storage-postgres-prisma" | "storage-postgres-non-pooling" | "storage-postgres" | "database-url";
+type RemoteProfile = {
+  subject: string;
+  name: string | null;
+  email: string | null;
+  matricNumber: string;
+  role: "user" | "admin";
+  publicKey: string | null;
+  lastSeenAt: string | null;
+  isOnline: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastSignedIn: string;
+};
 
-export function resolveDatabaseConnections(env: DatabaseEnv = process.env as DatabaseEnv): Array<{ source: DatabaseSource; url: string }> {
-  const candidates = [
-    { source: "storage-postgres-prisma" as const, url: env.STORAGE_POSTGRES_PRISMA_URL },
-    { source: "storage-postgres-non-pooling" as const, url: env.STORAGE_POSTGRES_URL_NON_POOLING },
-    { source: "storage-postgres" as const, url: env.STORAGE_POSTGRES_URL },
-    { source: "database-url" as const, url: env.DATABASE_URL },
-  ];
-  return candidates.filter((candidate): candidate is { source: DatabaseSource; url: string } =>
-    typeof candidate.url === "string" && candidate.url.startsWith("postgres"),
-  );
+type ConversationInfo = {
+  id: number;
+  participants: [string, string];
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ConversationIndex = {
+  conversationId: number;
+  peerSubject: string;
+  createdAt: string;
+  updatedAt: string;
+  latestMessageAt: string | null;
+};
+
+type StoredMessage = {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  senderSubject: string;
+  ciphertext: string;
+  iv: string;
+  keyVersion: string;
+  createdAt: string;
+  deliveredAt: string | null;
+  readAt: string | null;
+};
+
+type StoredNotification = {
+  id: number;
+  userSubject: string;
+  type: "new_message" | "recipient_returned";
+  title: string;
+  body: string;
+  conversationId: number | null;
+  isRead: boolean;
+  createdAt: string;
+};
+
+let _client: SupabaseClient | null = null;
+let _initialization: Promise<SupabaseClient | null> | null = null;
+let _readiness: "unconfigured" | "initializing" | "ready" | "failed" = "unconfigured";
+let _failureCategory: "authentication" | "connection" | "schema" | "unknown" | null = null;
+
+function resolveSupabaseUrl(env: StorageEnv = process.env as StorageEnv) {
+  return env.STORAGE_SUPABASE_URL ?? env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL ?? env.VITE_SUPABASE_URL ?? "";
 }
 
-export function resolveDatabaseConnection(env: DatabaseEnv = process.env as DatabaseEnv): { source: DatabaseSource; url: string } | null {
-  return resolveDatabaseConnections(env)[0] ?? null;
+function resolveSupabaseServerKey(env: StorageEnv = process.env as StorageEnv) {
+  return env.STORAGE_SUPABASE_SECRET_KEY ?? env.SUPABASE_SECRET_KEY ?? env.STORAGE_SUPABASE_SERVICE_ROLE_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 }
 
-export function resolveDatabaseUrl(env: DatabaseEnv = process.env as DatabaseEnv) {
-  return resolveDatabaseConnection(env)?.url ?? "";
-}
-
-let _pool: Pool | null = null;
-let _db: ReturnType<typeof drizzle> | null = null;
-let _databaseInitialization: Promise<ReturnType<typeof drizzle> | null> | null = null;
-type DatabaseReadiness = "unconfigured" | "initializing" | "ready" | "failed";
-let _databaseReadiness: DatabaseReadiness = "unconfigured";
-let _databaseFailureCategory: "authentication" | "connection" | "schema" | "unknown" | null = null;
-let _databaseSource: DatabaseSource | null = null;
-let _attemptedDatabaseSources: DatabaseSource[] = [];
-
-export function databaseFailureCategory(error: unknown) {
-  const message = error instanceof Error ? error.message.toLowerCase() : "";
-  if (message.includes("password") || message.includes("authentication")) return "authentication" as const;
-  if (message.includes("relation") || message.includes("table") || message.includes("schema")) return "schema" as const;
-  if (message.includes("ssl") || message.includes("connect") || message.includes("timeout") || message.includes("network")) return "connection" as const;
-  return "unknown" as const;
-}
-
-export async function getDatabaseReadiness() {
-  try {
-    await getDb();
-  } catch {
-    // getDb records only a safe readiness category; this endpoint must not rethrow database details.
-  }
+export function getSupabaseStorageConfiguration(env: StorageEnv = process.env as StorageEnv) {
   return {
-    configured: Boolean(resolveDatabaseUrl()),
-    driver: "storage-postgres" as const,
-    source: _databaseSource ?? resolveDatabaseConnection()?.source ?? null,
-    configuredSources: resolveDatabaseConnections().map((connection) => connection.source),
-    attemptedSources: _attemptedDatabaseSources,
-    status: _databaseReadiness,
-    failureCategory: _databaseFailureCategory,
+    urlConfigured: Boolean(resolveSupabaseUrl(env)),
+    serverKeyConfigured: Boolean(resolveSupabaseServerKey(env)),
   };
 }
 
-export const storagePostgresSchemaStatements = [
-  `CREATE TABLE IF NOT EXISTS "users" (
-    "id" serial PRIMARY KEY,
-    "openId" varchar(64) NOT NULL UNIQUE,
-    "name" text,
-    "email" varchar(320),
-    "universityEmail" varchar(320) UNIQUE,
-    "matricNumber" varchar(40) NOT NULL UNIQUE,
-    "passwordHash" text,
-    "loginMethod" varchar(64),
-    "role" varchar(16) NOT NULL DEFAULT 'user',
-    "publicKey" text,
-    "lastSeenAt" timestamp,
-    "isOnline" boolean NOT NULL DEFAULT false,
-    "createdAt" timestamp NOT NULL DEFAULT now(),
-    "updatedAt" timestamp NOT NULL DEFAULT now(),
-    "lastSignedIn" timestamp NOT NULL DEFAULT now()
-  )`,
-  `CREATE TABLE IF NOT EXISTS "conversations" (
-    "id" serial PRIMARY KEY,
-    "createdAt" timestamp NOT NULL DEFAULT now(),
-    "updatedAt" timestamp NOT NULL DEFAULT now()
-  )`,
-  `CREATE TABLE IF NOT EXISTS "conversationParticipants" (
-    "id" serial PRIMARY KEY,
-    "conversationId" integer NOT NULL,
-    "userId" integer NOT NULL,
-    "joinedAt" timestamp NOT NULL DEFAULT now(),
-    "lastReadAt" timestamp,
-    CONSTRAINT "conversation_participant_unique" UNIQUE ("conversationId", "userId")
-  )`,
-  `CREATE TABLE IF NOT EXISTS "encryptedMessages" (
-    "id" serial PRIMARY KEY,
-    "conversationId" integer NOT NULL,
-    "senderId" integer NOT NULL,
-    "ciphertext" text NOT NULL,
-    "iv" varchar(128) NOT NULL,
-    "keyVersion" varchar(64) NOT NULL DEFAULT 'v1',
-    "createdAt" timestamp NOT NULL DEFAULT now(),
-    "deliveredAt" timestamp,
-    "readAt" timestamp
-  )`,
-  `CREATE TABLE IF NOT EXISTS "messageStatuses" (
-    "id" serial PRIMARY KEY,
-    "messageId" integer NOT NULL,
-    "userId" integer NOT NULL,
-    "status" varchar(16) NOT NULL DEFAULT 'sent',
-    "updatedAt" timestamp NOT NULL DEFAULT now(),
-    CONSTRAINT "message_status_user_unique" UNIQUE ("messageId", "userId")
-  )`,
-  `CREATE TABLE IF NOT EXISTS "notifications" (
-    "id" serial PRIMARY KEY,
-    "userId" integer NOT NULL,
-    "type" varchar(32) NOT NULL,
-    "title" varchar(160) NOT NULL,
-    "body" text NOT NULL,
-    "conversationId" integer,
-    "isRead" boolean NOT NULL DEFAULT false,
-    "createdAt" timestamp NOT NULL DEFAULT now()
-  )`,
-] as const;
-
-async function ensureStoragePostgresSchema(db: NonNullable<typeof _db>) {
-  for (const statement of storagePostgresSchemaStatements) {
-    await db.execute(sql.raw(statement));
-  }
+export function databaseFailureCategory(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (message.includes("jwt") || message.includes("permission") || message.includes("unauthorized") || message.includes("authentication") || message.includes("api key")) return "authentication" as const;
+  if (message.includes("bucket") || message.includes("storage")) return "schema" as const;
+  if (message.includes("ssl") || message.includes("connect") || message.includes("timeout") || message.includes("network") || message.includes("fetch")) return "connection" as const;
+  return "unknown" as const;
 }
 
-export async function getDb() {
-  const connections = resolveDatabaseConnections();
-  if (connections.length === 0) {
-    _databaseReadiness = "unconfigured";
-    return null;
-  }
-  if (_db) return _db;
-  if (!_databaseInitialization) {
-    _databaseInitialization = (async () => {
-      _databaseReadiness = "initializing";
-      _attemptedDatabaseSources = [];
-      for (const connection of connections) {
-        _attemptedDatabaseSources.push(connection.source);
-        const pool = new Pool({ connectionString: connection.url, max: 2, min: 0, idleTimeoutMillis: 5_000 });
-        const db = drizzle(pool);
-        try {
-          await ensureStoragePostgresSchema(db);
-          _pool = pool;
-          _db = db;
-          _databaseSource = connection.source;
-          _databaseReadiness = "ready";
-          _databaseFailureCategory = null;
-          return db;
-        } catch (error) {
-          _databaseReadiness = "failed";
-          _databaseFailureCategory = databaseFailureCategory(error);
-          _databaseSource = connection.source;
-          await pool.end().catch(() => undefined);
-        }
+async function ensureBucket(client: SupabaseClient) {
+  const existing = await client.storage.getBucket(BUCKET);
+  if (!existing.error) return;
+  const created = await client.storage.createBucket(BUCKET, {
+    public: false,
+    fileSizeLimit: "1048576",
+    allowedMimeTypes: ["application/json"],
+  });
+  if (created.error && !created.error.message.toLowerCase().includes("already exists")) throw created.error;
+}
+
+async function getStore() {
+  if (_client) return _client;
+  if (!_initialization) {
+    _initialization = (async () => {
+      const url = resolveSupabaseUrl();
+      const key = resolveSupabaseServerKey();
+      if (!url || !key) {
+        _readiness = "unconfigured";
+        return null;
       }
-      return null;
+      _readiness = "initializing";
+      try {
+        const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+        await ensureBucket(client);
+        _client = client;
+        _readiness = "ready";
+        _failureCategory = null;
+        return client;
+      } catch (error) {
+        _readiness = "failed";
+        _failureCategory = databaseFailureCategory(error);
+        console.error("[SecureChatStorage] private storage initialization failed", error instanceof Error ? error.message : "unknown error");
+        return null;
+      }
     })().finally(() => {
-      _databaseInitialization = null;
+      _initialization = null;
     });
   }
-  return _databaseInitialization;
+  return _initialization;
+}
+
+export async function getDatabaseReadiness() {
+  await getStore();
+  const configuration = getSupabaseStorageConfiguration();
+  return {
+    configured: configuration.urlConfigured && configuration.serverKeyConfigured,
+    driver: "supabase-private-storage" as const,
+    source: "storage-supabase" as const,
+    configuredSources: ["storage-supabase"],
+    attemptedSources: configuration.urlConfigured && configuration.serverKeyConfigured ? ["storage-supabase"] : [],
+    status: _readiness,
+    failureCategory: _failureCategory,
+  };
+}
+
+function now() {
+  return new Date().toISOString();
+}
+
+function asDate(value: string | null | undefined) {
+  return value ? new Date(value) : null;
+}
+
+function subjectFromOpenId(openId: string) {
+  return openId.startsWith("supabase:") ? openId.slice("supabase:".length) : openId;
+}
+
+function numericId(subject: string) {
+  const hash = createHash("sha256").update(`securechat:user:${subject}`).digest();
+  return Math.max(1, hash.readUInt32BE(0) & 0x7fffffff);
+}
+
+function directConversationId(firstSubject: string, secondSubject: string) {
+  const pair = [firstSubject, secondSubject].sort().join(":");
+  const hash = createHash("sha256").update(`securechat:conversation:${pair}`).digest();
+  return Math.max(1, hash.readUInt32BE(0) & 0x7fffffff);
+}
+
+function profilePath(subject: string) {
+  return `profiles/${subject}.json`;
+}
+
+function conversationInfoPath(conversationId: number) {
+  return `conversations/${conversationId}/info.json`;
+}
+
+function conversationIndexPath(subject: string, conversationId: number) {
+  return `inboxes/${subject}/conversations/${conversationId}.json`;
+}
+
+function messagePath(conversationId: number, messageId: number) {
+  return `conversations/${conversationId}/messages/${messageId}.json`;
+}
+
+function messageIndexPath(subject: string, messageId: number) {
+  return `inboxes/${subject}/messages/${messageId}.json`;
+}
+
+function notificationPath(subject: string, notificationId: number) {
+  return `inboxes/${subject}/notifications/${notificationId}.json`;
+}
+
+async function readJson<T>(path: string): Promise<T | undefined> {
+  const store = await getStore();
+  if (!store) return undefined;
+  const { data, error } = await store.storage.from(BUCKET).download(path);
+  if (error) {
+    if (error.message.toLowerCase().includes("not found") || error.message.toLowerCase().includes("object")) return undefined;
+    throw error;
+  }
+  return JSON.parse(await data.text()) as T;
+}
+
+async function writeJson(path: string, value: unknown) {
+  const store = await getStore();
+  if (!store) throw new Error("SecureChat private storage is unavailable");
+  const { error } = await store.storage.from(BUCKET).upload(path, JSON.stringify(value), {
+    upsert: true,
+    contentType: "application/json",
+    cacheControl: "no-store",
+  });
+  if (error) throw error;
+}
+
+async function listJson<T>(prefix: string): Promise<T[]> {
+  const store = await getStore();
+  if (!store) return [];
+  const { data, error } = await store.storage.from(BUCKET).list(prefix, { limit: 100, offset: 0, sortBy: { column: "name", order: "asc" } });
+  if (error) throw error;
+  const files = (data ?? []).filter((item) => item.name.endsWith(".json"));
+  const items = await Promise.all(files.map((item) => readJson<T>(`${prefix}/${item.name}`)));
+  return items.reduce<T[]>((available, item) => {
+    if (item !== undefined) available.push(item);
+    return available;
+  }, []);
+}
+
+function metadataString(user: SupabaseAuthUser, key: "name" | "matricNumber") {
+  const value = user.user_metadata?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function profileFromAuthUser(user: SupabaseAuthUser, previous?: RemoteProfile): RemoteProfile | undefined {
+  const matricNumber = previous?.matricNumber ?? metadataString(user, "matricNumber")?.toUpperCase();
+  if (!matricNumber) return undefined;
+  const timestamp = now();
+  return {
+    subject: user.id,
+    name: previous?.name ?? metadataString(user, "name") ?? user.email ?? "University user",
+    email: user.email ?? previous?.email ?? null,
+    matricNumber,
+    role: previous?.role ?? "user",
+    publicKey: previous?.publicKey ?? null,
+    lastSeenAt: previous?.lastSeenAt ?? null,
+    isOnline: previous?.isOnline ?? false,
+    createdAt: previous?.createdAt ?? user.created_at ?? timestamp,
+    updatedAt: timestamp,
+    lastSignedIn: timestamp,
+  };
+}
+
+function profileToUser(profile: RemoteProfile): User {
+  return {
+    id: numericId(profile.subject),
+    openId: `supabase:${profile.subject}`,
+    name: profile.name,
+    email: profile.email,
+    universityEmail: profile.email,
+    matricNumber: profile.matricNumber,
+    passwordHash: null,
+    loginMethod: "supabase-email",
+    role: profile.role,
+    publicKey: profile.publicKey,
+    lastSeenAt: asDate(profile.lastSeenAt),
+    isOnline: profile.isOnline,
+    createdAt: new Date(profile.createdAt),
+    updatedAt: new Date(profile.updatedAt),
+    lastSignedIn: new Date(profile.lastSignedIn),
+  };
+}
+
+async function listAuthUsers() {
+  const store = await getStore();
+  if (!store) return [];
+  const { data, error } = await store.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) throw error;
+  return data.users;
+}
+
+async function findSubjectByNumericId(id: number) {
+  const users = await listAuthUsers();
+  return users.find((user) => numericId(user.id) === id)?.id;
+}
+
+async function ensureProfile(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
+  const subject = subjectFromOpenId(input.openId);
+  const previous = await readJson<RemoteProfile>(profilePath(subject));
+  const timestamp = now();
+  const profile: RemoteProfile = {
+    subject,
+    name: input.name,
+    email: input.email,
+    matricNumber: input.matricNumber.toUpperCase(),
+    role: previous?.role ?? "user",
+    publicKey: previous?.publicKey ?? null,
+    lastSeenAt: previous?.lastSeenAt ?? null,
+    isOnline: previous?.isOnline ?? false,
+    createdAt: previous?.createdAt ?? timestamp,
+    updatedAt: timestamp,
+    lastSignedIn: timestamp,
+  };
+  await writeJson(profilePath(subject), profile);
+  return profile;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  if (!user.matricNumber) throw new Error("User matric number is required for upsert");
-  const db = await getDb();
-  if (!db) return;
-
-  const values: InsertUser = { openId: user.openId, matricNumber: user.matricNumber };
-  const updateSet: Partial<InsertUser> = { updatedAt: new Date() };
-  const textFields = ["name", "email", "loginMethod"] as const;
-
-  for (const field of textFields) {
-    if (user[field] !== undefined) {
-      values[field] = user[field] ?? null;
-      updateSet[field] = user[field] ?? null;
-    }
-  }
-  if (user.lastSignedIn !== undefined) {
-    values.lastSignedIn = user.lastSignedIn;
-    updateSet.lastSignedIn = user.lastSignedIn;
-  }
-  if (user.role !== undefined) {
-    values.role = user.role;
-    updateSet.role = user.role;
-  } else if (user.openId === ENV.ownerOpenId) {
-    values.role = "admin";
-    updateSet.role = "admin";
-  }
-  if (!values.lastSignedIn) values.lastSignedIn = new Date();
-
-  await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
+  if (!user.openId || !user.matricNumber) throw new Error("SecureChat user identity is required");
+  await ensureProfile({
+    openId: user.openId,
+    email: user.email ?? user.universityEmail ?? null,
+    name: user.name ?? user.email ?? "University user",
+    matricNumber: user.matricNumber,
+  });
 }
 
 export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  const profile = await readJson<RemoteProfile>(profilePath(subjectFromOpenId(openId)));
+  return profile ? profileToUser(profile) : undefined;
 }
 
 export function selectSupabaseProfile<T>(byOpenId: T | undefined, byMatricNumber: T | undefined, byEmail: T | undefined) {
@@ -227,242 +333,219 @@ export function selectSupabaseProfile<T>(byOpenId: T | undefined, byMatricNumber
 }
 
 export async function getOrCreateSupabaseUser(input: { openId: string; email: string | null; name: string; matricNumber: string }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable: no Postgres connection string was provided.");
-  const existing = selectSupabaseProfile(
-    await getUserByOpenId(input.openId),
-    await getUserByMatricNumber(input.matricNumber),
-    input.email ? await getUserByEmail(input.email) : undefined,
-  );
-  if (existing) {
-    await db.update(users).set({
-      openId: input.openId,
-      email: input.email,
-      universityEmail: input.email,
-      name: input.name,
-      matricNumber: input.matricNumber,
-      loginMethod: "supabase-email",
-      updatedAt: new Date(),
-    }).where(eq(users.id, existing.id));
-    return {
-      ...existing,
-      openId: input.openId,
-      email: input.email,
-      universityEmail: input.email,
-      name: input.name,
-      matricNumber: input.matricNumber,
-      loginMethod: "supabase-email",
-      updatedAt: new Date(),
-    };
-  }
-  const inserted = await db.insert(users).values({
-    openId: input.openId,
-    email: input.email,
-    universityEmail: input.email,
-    name: input.name,
-    matricNumber: input.matricNumber,
-    loginMethod: "supabase-email",
-  }).returning({ id: users.id });
-  return getUserById(inserted[0]?.id ?? 0);
+  return profileToUser(await ensureProfile(input));
 }
 
 export async function getUserById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result[0];
+  const subject = await findSubjectByNumericId(id);
+  if (!subject) return undefined;
+  const stored = await readJson<RemoteProfile>(profilePath(subject));
+  if (stored) return profileToUser(stored);
+  const authUser = (await listAuthUsers()).find((user) => user.id === subject);
+  const profile = authUser ? profileFromAuthUser(authUser) : undefined;
+  return profile ? profileToUser(profile) : undefined;
 }
 
 export async function getUserByMatricNumber(matricNumber: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.matricNumber, matricNumber)).limit(1);
-  return result[0];
+  const normalized = matricNumber.trim().toUpperCase();
+  const users = await listAuthUsers();
+  const authUser = users.find((user) => metadataString(user, "matricNumber")?.toUpperCase() === normalized);
+  if (!authUser) return undefined;
+  const stored = await readJson<RemoteProfile>(profilePath(authUser.id));
+  const profile = stored ?? profileFromAuthUser(authUser);
+  return profile ? profileToUser(profile) : undefined;
 }
 
 export async function getUserByUniversityEmail(email: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.universityEmail, email)).limit(1);
-  return result[0];
+  return getUserByEmail(email);
 }
 
 export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  return result[0];
+  const normalized = email.trim().toLowerCase();
+  const users = await listAuthUsers();
+  const authUser = users.find((user) => user.email?.toLowerCase() === normalized);
+  if (!authUser) return undefined;
+  const stored = await readJson<RemoteProfile>(profilePath(authUser.id));
+  const profile = stored ?? profileFromAuthUser(authUser);
+  return profile ? profileToUser(profile) : undefined;
 }
 
-export async function createLocalUser(input: { matricNumber: string; universityEmail: string; name: string; passwordHash: string }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-  const inserted = await db.insert(users).values({
-    openId: `local:${input.matricNumber}`,
-    matricNumber: input.matricNumber,
-    universityEmail: input.universityEmail,
-    email: input.universityEmail,
-    name: input.name,
-    passwordHash: input.passwordHash,
-    loginMethod: "matric-password",
-  }).returning({ id: users.id });
-  return inserted[0]?.id;
+export async function createLocalUser() {
+  throw new Error("Local password profiles are not supported; SecureChat uses Supabase Auth.");
 }
 
 export async function searchUsers(currentUserId: number, query: string) {
-  const db = await getDb();
-  if (!db) return [];
-  const usersList = await db.select({
-    id: users.id,
-    name: users.name,
-    email: users.email,
-    publicKey: users.publicKey,
-    isOnline: users.isOnline,
-    lastSeenAt: users.lastSeenAt,
-  }).from(users).where(ne(users.id, currentUserId)).limit(30);
   const needle = query.trim().toLowerCase();
-  return needle ? usersList.filter(u => `${u.name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(needle)) : usersList;
+  const authUsers = await listAuthUsers();
+  const results: Array<User | undefined> = await Promise.all(authUsers.slice(0, 1000).map(async (authUser) => {
+    const stored = await readJson<RemoteProfile>(profilePath(authUser.id));
+    const profile = stored ?? profileFromAuthUser(authUser);
+    return profile ? profileToUser(profile) : undefined;
+  }));
+  const profiles = results.filter((profile): profile is User => profile !== undefined);
+  return profiles.filter((profile) => profile.id !== currentUserId)
+    .filter((profile) => !needle || `${profile.name ?? ""} ${profile.email ?? ""} ${profile.matricNumber}`.toLowerCase().includes(needle))
+    .slice(0, 30)
+    .map((profile) => ({ id: profile.id, name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt }));
+}
+
+async function updateProfileForUserId(userId: number, update: (profile: RemoteProfile) => RemoteProfile) {
+  const subject = await findSubjectByNumericId(userId);
+  if (!subject) throw new Error("SecureChat user profile was not found");
+  const existing = await readJson<RemoteProfile>(profilePath(subject));
+  if (!existing) throw new Error("SecureChat user profile is unavailable");
+  const profile = update(existing);
+  await writeJson(profilePath(subject), profile);
+  return profile;
 }
 
 export async function setUserPresence(userId: number, online: boolean) {
-  const db = await getDb();
-  if (!db) return;
-  const previous = await db.select({ isOnline: users.isOnline, name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
-  await db.update(users).set({ isOnline: online, lastSeenAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
-  if (online && previous[0]?.isOnline === false) {
-    const memberships = await db.select({ conversationId: conversationParticipants.conversationId })
-      .from(conversationParticipants).where(eq(conversationParticipants.userId, userId));
-    for (const membership of memberships) {
-      const peers = await db.select({ userId: conversationParticipants.userId })
-        .from(conversationParticipants)
-        .where(and(eq(conversationParticipants.conversationId, membership.conversationId), ne(conversationParticipants.userId, userId)));
-      for (const peer of peers) {
-        await db.insert(notifications).values({
-          userId: peer.userId,
-          ...notificationFor("recipient-returned"),
-          body: `${previous[0]?.name || "Your contact"} returned to SecureChat.`,
-          conversationId: membership.conversationId,
-        });
-      }
-    }
-  }
+  await updateProfileForUserId(userId, (profile) => ({ ...profile, isOnline: online, lastSeenAt: now(), updatedAt: now() }));
 }
 
 export async function setPublicKey(userId: number, publicKey: string) {
-  const db = await getDb();
-  if (!db) return;
-  await db.update(users).set({ publicKey, updatedAt: new Date() }).where(eq(users.id, userId));
+  await updateProfileForUserId(userId, (profile) => ({ ...profile, publicKey, updatedAt: now() }));
+}
+
+async function getConversationInfo(conversationId: number) {
+  return readJson<ConversationInfo>(conversationInfoPath(conversationId));
+}
+
+async function subjectForUserId(userId: number) {
+  const subject = await findSubjectByNumericId(userId);
+  if (!subject) throw new Error("SecureChat user profile was not found");
+  return subject;
 }
 
 export async function userIsParticipant(userId: number, conversationId: number) {
-  const db = await getDb();
-  if (!db) return false;
-  const result = await db.select({ id: conversationParticipants.id })
-    .from(conversationParticipants)
-    .where(and(eq(conversationParticipants.userId, userId), eq(conversationParticipants.conversationId, conversationId)))
-    .limit(1);
-  return Boolean(result[0]);
+  const subject = await subjectForUserId(userId);
+  const conversation = await getConversationInfo(conversationId);
+  return Boolean(conversation?.participants.includes(subject));
+}
+
+async function assertParticipant(userId: number, conversationId: number) {
+  if (!(await userIsParticipant(userId, conversationId))) throw new Error("Unauthorized conversation access");
+}
+
+async function writeConversationIndex(subject: string, index: ConversationIndex) {
+  await writeJson(conversationIndexPath(subject, index.conversationId), index);
 }
 
 export async function getOrCreateDirectConversation(userId: number, otherUserId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-  const mine = await db.select({ conversationId: conversationParticipants.conversationId })
-    .from(conversationParticipants).where(eq(conversationParticipants.userId, userId));
-  for (const candidate of mine) {
-    const members = await db.select({ userId: conversationParticipants.userId })
-      .from(conversationParticipants).where(eq(conversationParticipants.conversationId, candidate.conversationId));
-    if (members.length === 2 && members.some(m => m.userId === otherUserId)) return candidate.conversationId;
-  }
-  const created = await db.insert(conversations).values({}).returning({ id: conversations.id });
-  const conversationId = created[0]?.id;
-  if (!conversationId) throw new Error("Could not create conversation");
-  await db.insert(conversationParticipants).values([
-    { conversationId, userId },
-    { conversationId, userId: otherUserId },
+  if (userId === otherUserId) throw new Error("You cannot start a conversation with yourself");
+  const subject = await subjectForUserId(userId);
+  const otherSubject = await subjectForUserId(otherUserId);
+  const conversationId = directConversationId(subject, otherSubject);
+  const existing = await getConversationInfo(conversationId);
+  const timestamp = now();
+  const conversation: ConversationInfo = existing ?? {
+    id: conversationId,
+    participants: [subject, otherSubject].sort() as [string, string],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  if (!existing) await writeJson(conversationInfoPath(conversationId), conversation);
+  await Promise.all([
+    writeConversationIndex(subject, { conversationId, peerSubject: otherSubject, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null }),
+    writeConversationIndex(otherSubject, { conversationId, peerSubject: subject, createdAt: conversation.createdAt, updatedAt: timestamp, latestMessageAt: null }),
   ]);
   return conversationId;
 }
 
 export async function listConversations(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  const memberships = await db.select({ conversationId: conversationParticipants.conversationId })
-    .from(conversationParticipants).where(eq(conversationParticipants.userId, userId));
-  const result = [];
-  for (const membership of memberships) {
-    const members = await db.select({ userId: conversationParticipants.userId, name: users.name, email: users.email, publicKey: users.publicKey, isOnline: users.isOnline, lastSeenAt: users.lastSeenAt })
-      .from(conversationParticipants).innerJoin(users, eq(users.id, conversationParticipants.userId))
-      .where(and(eq(conversationParticipants.conversationId, membership.conversationId), ne(users.id, userId)));
-    const latest = await db.select({ id: encryptedMessages.id, createdAt: encryptedMessages.createdAt })
-      .from(encryptedMessages).where(eq(encryptedMessages.conversationId, membership.conversationId)).orderBy(desc(encryptedMessages.createdAt)).limit(1);
-    result.push({ conversationId: membership.conversationId, peer: members[0], latestMessageAt: latest[0]?.createdAt ?? null });
-  }
-  return result.sort((a, b) => (b.latestMessageAt?.getTime() ?? 0) - (a.latestMessageAt?.getTime() ?? 0));
+  const subject = await subjectForUserId(userId);
+  const indexes = await listJson<ConversationIndex>(`inboxes/${subject}/conversations`);
+  const items = await Promise.all(indexes.map(async (index) => ({
+    conversationId: index.conversationId,
+    peer: await getUserByOpenId(`supabase:${index.peerSubject}`),
+    latestMessageAt: asDate(index.latestMessageAt),
+  })));
+  return items.filter((item) => Boolean(item.peer)).sort((a, b) => (b.latestMessageAt?.getTime() ?? 0) - (a.latestMessageAt?.getTime() ?? 0));
+}
+
+function materializeMessage(message: StoredMessage) {
+  return {
+    ...message,
+    createdAt: new Date(message.createdAt),
+    deliveredAt: asDate(message.deliveredAt),
+    readAt: asDate(message.readAt),
+  };
 }
 
 export async function listEncryptedMessages(userId: number, conversationId: number) {
-  assertParticipantAccess(true, await userIsParticipant(userId, conversationId), "Unauthorized conversation access");
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(encryptedMessages).where(eq(encryptedMessages.conversationId, conversationId)).orderBy(encryptedMessages.createdAt);
+  await assertParticipant(userId, conversationId);
+  const messages = await listJson<StoredMessage>(`conversations/${conversationId}/messages`);
+  return messages.sort((first, second) => first.createdAt.localeCompare(second.createdAt)).map(materializeMessage);
 }
 
-export async function createEncryptedMessage(input: {
-  userId: number;
-  conversationId: number;
-  ciphertext: string;
-  iv: string;
-  keyVersion?: string;
-}) {
-  if (!(await userIsParticipant(input.userId, input.conversationId))) throw new Error("Unauthorized conversation access");
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-  const inserted = await db.insert(encryptedMessages).values({
+function messageId() {
+  return Date.now() * 1000 + randomInt(0, 1000);
+}
+
+export async function createEncryptedMessage(input: { userId: number; conversationId: number; ciphertext: string; iv: string; keyVersion?: string }) {
+  await assertParticipant(input.userId, input.conversationId);
+  const senderSubject = await subjectForUserId(input.userId);
+  const conversation = await getConversationInfo(input.conversationId);
+  if (!conversation) throw new Error("Conversation was not found");
+  const id = messageId();
+  const timestamp = now();
+  const message: StoredMessage = {
+    id,
     conversationId: input.conversationId,
     senderId: input.userId,
+    senderSubject,
     ciphertext: input.ciphertext,
     iv: input.iv,
     keyVersion: input.keyVersion ?? "v1",
-  }).returning({ id: encryptedMessages.id });
-  const messageId = inserted[0]?.id;
-  if (!messageId) throw new Error("Could not create message");
-  await db.insert(messageStatuses).values({ messageId, userId: input.userId, status: "sent" });
-  const members = await db.select({ userId: conversationParticipants.userId }).from(conversationParticipants)
-    .where(eq(conversationParticipants.conversationId, input.conversationId));
-  for (const member of members.filter(m => m.userId !== input.userId)) {
-    await db.insert(messageStatuses).values({ messageId, userId: member.userId, status: "sent" });
-    await db.insert(notifications).values({
-      userId: member.userId,
-      ...notificationFor("new-message"),
-      body: "A protected message is waiting in SecureChat.",
-      conversationId: input.conversationId,
-    });
-  }
-  return { messageId };
+    createdAt: timestamp,
+    deliveredAt: null,
+    readAt: null,
+  };
+  const recipients = conversation.participants.filter((subject) => subject !== senderSubject);
+  await writeJson(messagePath(input.conversationId, id), message);
+  await Promise.all(conversation.participants.map((subject) => writeJson(messageIndexPath(subject, id), { conversationId: input.conversationId })));
+  await Promise.all(conversation.participants.map((subject) => writeConversationIndex(subject, {
+    conversationId: input.conversationId,
+    peerSubject: subject === senderSubject ? recipients[0] : senderSubject,
+    createdAt: conversation.createdAt,
+    updatedAt: timestamp,
+    latestMessageAt: timestamp,
+  })));
+  await Promise.all(recipients.map(async (recipient) => {
+    const notification = notificationFor("new-message");
+    const value: StoredNotification = { id, userSubject: recipient, type: notification.type, title: notification.title, body: "A protected message is waiting in SecureChat.", conversationId: input.conversationId, isRead: false, createdAt: timestamp };
+    await writeJson(notificationPath(recipient, id), value);
+  }));
+  return { messageId: id };
 }
 
-export async function updateMessageStatus(userId: number, messageId: number, status: "delivered" | "read") {
-  const db = await getDb();
-  if (!db) return;
-  const message = await db.select().from(encryptedMessages).where(eq(encryptedMessages.id, messageId)).limit(1);
-  assertParticipantAccess(Boolean(message[0]), Boolean(message[0] && await userIsParticipant(userId, message[0].conversationId)), "Unauthorized message access");
-  const currentStatus = await db.select({ status: messageStatuses.status }).from(messageStatuses)
-    .where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId))).limit(1);
-  const nextStatus = advanceMessageStatus(currentStatus[0]?.status ?? "sent", status);
-  await db.update(messageStatuses).set({ status: nextStatus, updatedAt: new Date() }).where(and(eq(messageStatuses.messageId, messageId), eq(messageStatuses.userId, userId)));
-  if (nextStatus === "delivered") await db.update(encryptedMessages).set({ deliveredAt: new Date() }).where(eq(encryptedMessages.id, messageId));
-  if (nextStatus === "read") await db.update(encryptedMessages).set({ deliveredAt: new Date(), readAt: new Date() }).where(eq(encryptedMessages.id, messageId));
+export async function updateMessageStatus(userId: number, messageIdValue: number, status: "delivered" | "read") {
+  const subject = await subjectForUserId(userId);
+  const index = await readJson<{ conversationId: number }>(messageIndexPath(subject, messageIdValue));
+  if (!index) throw new Error("Message was not found");
+  await assertParticipant(userId, index.conversationId);
+  const message = await readJson<StoredMessage>(messagePath(index.conversationId, messageIdValue));
+  if (!message) throw new Error("Message was not found");
+  if (message.senderId === userId) return;
+  const nextStatus = advanceMessageStatus(message.readAt ? "read" : message.deliveredAt ? "delivered" : "sent", status);
+  const timestamp = now();
+  const updated: StoredMessage = { ...message, deliveredAt: nextStatus === "delivered" || nextStatus === "read" ? timestamp : message.deliveredAt, readAt: nextStatus === "read" ? timestamp : message.readAt };
+  await writeJson(messagePath(index.conversationId, messageIdValue), updated);
+}
+
+function materializeNotification(notification: StoredNotification) {
+  return { ...notification, userId: numericId(notification.userSubject), createdAt: new Date(notification.createdAt) };
 }
 
 export async function listNotifications(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(30);
+  const subject = await subjectForUserId(userId);
+  const notifications = await listJson<StoredNotification>(`inboxes/${subject}/notifications`);
+  return notifications.sort((first, second) => second.createdAt.localeCompare(first.createdAt)).slice(0, 30).map(materializeNotification);
 }
 
 export async function markNotificationRead(userId: number, notificationId: number) {
-  const db = await getDb();
-  if (!db) return;
-  await db.update(notifications).set({ isRead: true }).where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+  const subject = await subjectForUserId(userId);
+  const notification = await readJson<StoredNotification>(notificationPath(subject, notificationId));
+  if (!notification || notification.userSubject !== subject) return;
+  await writeJson(notificationPath(subject, notificationId), { ...notification, isRead: true });
 }

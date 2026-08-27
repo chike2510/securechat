@@ -119,21 +119,26 @@
 - [x] Remove the Supabase expiry implementation detail from the confirmation email template copy
 - [x] Align SecureChat OTP input and copy with the eight-digit Supabase token delivered by the configured email template
 - [x] Prevent the post-OTP session-hydration race that returns verified users to the login screen
-- [ ] Verify post-OTP success end to end: verified user stays authenticated and chat opens
+- [ ] Verify post-OTP success end to end: verified user stays authenticated and active chat opens
 - [x] Add integration coverage for successful OTP verification through the auth bootstrap and Home auth gate
 - [x] Deploy the session-hydration fix and confirm the production alias no longer bounces verified users to login
 - [x] Diagnose the remaining production OTP verification bounce after the session-hydration fix
 - [ ] Verify the final OTP-to-chat path with a real production session before closing the auth bug
 - [x] Test the supplied production account and capture the exact login/OTP redirect failure
-- [ ] Remove the supplied credential from the working conversation context after testing and advise a password change
-- [ ] Deploy the verifier environment fallback and retest the authorized account’s authenticated auth.me response
+- [x] Remove the supplied credential from the test browser session after testing and advise a password change
+- [x] Deploy the verifier environment fallback and retest the authorized account’s authenticated auth.me response
 - [x] Fix `/api/config` so Vite-prefixed Supabase URL and public-key variables load the deployed auth screen
 - [ ] Deploy and verify the SecureChat Storage Postgres driver migration against the connected Vercel database
 - [ ] Apply the SecureChat schema to Storage Postgres and verify profile provisioning with the authorized account
 - [x] Add a safe production database-readiness diagnostic to identify the remaining Storage Postgres provisioning failure
 - [x] Ensure the database readiness endpoint returns a safe structured failure response when initialization fails
 - [ ] Switch SecureChat from the failing Storage Postgres migration URL to the compatible Vercel application connection URL
-- [ ] Confirm which Vercel Storage Postgres connection sources are available and attempted in production
+- [x] Confirm which Vercel Storage Postgres connection sources are available and attempted in production
 - [ ] Reconnect or refresh the Vercel Storage Postgres integration so its injected credentials authenticate successfully
 - [x] Allow a verified Supabase session to enter the SecureChat workspace even when profile provisioning is temporarily unavailable
 - [x] Show a clear in-workspace database limitation state instead of returning a verified user to login
+- [ ] Restore production database/profile provisioning so verified Supabase users reach the full Messages chat workspace instead of the signed-in fallback shell
+- [ ] Verify a real OTP-confirmed production account loads conversations and can enter active chat without returning to login
+- [ ] Replace the failing Vercel Storage Postgres chat dependency with the existing Supabase-backed project integration
+- [ ] Deploy the Supabase-backed encrypted message store and verify production readiness without exposing any server key
+- [ ] Verify real OTP-to-active-chat flow, including profile creation, conversation listing, encrypted send, and read state

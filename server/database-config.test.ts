@@ -1,53 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { databaseFailureCategory, resolveDatabaseConnection, resolveDatabaseConnections, resolveDatabaseUrl, storagePostgresSchemaStatements } from "./db.js";
+import { databaseFailureCategory, getSupabaseStorageConfiguration } from "./db.js";
 
-describe("Storage Postgres database configuration", () => {
-  it("uses the Vercel Storage Postgres application/Prisma URL when available", () => {
-    expect(resolveDatabaseUrl({
-      STORAGE_POSTGRES_URL_NON_POOLING: "postgresql://non-pooling.example/securechat",
-      STORAGE_POSTGRES_PRISMA_URL: "postgresql://prisma.example/securechat",
-    })).toBe("postgresql://prisma.example/securechat");
-    expect(resolveDatabaseConnection({
-      STORAGE_POSTGRES_PRISMA_URL: "postgresql://prisma.example/securechat",
-    })?.source).toBe("storage-postgres-prisma");
+describe("Supabase private storage configuration", () => {
+  it("recognizes the Vercel integration's existing STORAGE-prefixed server configuration", () => {
+    expect(getSupabaseStorageConfiguration({
+      STORAGE_SUPABASE_URL: "https://example.supabase.co",
+      STORAGE_SUPABASE_SECRET_KEY: "sb_secret_example",
+    })).toEqual({ urlConfigured: true, serverKeyConfigured: true });
   });
 
-  it("keeps the direct and generic Postgres fallbacks available when the first source fails", () => {
-    expect(resolveDatabaseConnections({
-      STORAGE_POSTGRES_PRISMA_URL: "postgresql://prisma.example/securechat",
-      STORAGE_POSTGRES_URL_NON_POOLING: "postgresql://direct.example/securechat",
-      STORAGE_POSTGRES_URL: "postgresql://generic.example/securechat",
-    }).map((connection) => connection.source)).toEqual([
-      "storage-postgres-prisma",
-      "storage-postgres-non-pooling",
-      "storage-postgres",
-    ]);
+  it("also supports the older service-role server variable when an integration provides it", () => {
+    expect(getSupabaseStorageConfiguration({
+      STORAGE_SUPABASE_URL: "https://example.supabase.co",
+      STORAGE_SUPABASE_SERVICE_ROLE_KEY: "service-role-example",
+    })).toEqual({ urlConfigured: true, serverKeyConfigured: true });
   });
 
-  it("prefers the connected Storage Postgres URL over a generic database URL", () => {
-    expect(resolveDatabaseUrl({
-      DATABASE_URL: "postgresql://explicit.example/securechat",
-      STORAGE_POSTGRES_URL_NON_POOLING: "postgresql://non-pooling.example/securechat",
-    })).toBe("postgresql://non-pooling.example/securechat");
+  it("does not treat a browser publishable key as a server key", () => {
+    expect(getSupabaseStorageConfiguration({
+      STORAGE_SUPABASE_URL: "https://example.supabase.co",
+    })).toEqual({ urlConfigured: true, serverKeyConfigured: false });
   });
 
-  it("rejects a MySQL DATABASE_URL instead of passing it to the Postgres driver", () => {
-    expect(resolveDatabaseUrl({
-      DATABASE_URL: "mysql://tidb.example/securechat",
-    })).toBe("");
-  });
-
-  it("bootstraps all SecureChat profile and ciphertext-only message tables", () => {
-    const schemaSql = storagePostgresSchemaStatements.join("\n");
-    expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS "users"');
-    expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS "encryptedMessages"');
-    expect(schemaSql).toContain('"ciphertext" text NOT NULL');
-    expect(schemaSql).toContain('"matricNumber" varchar(40) NOT NULL UNIQUE');
-  });
-
-  it("maps database failures to safe public diagnostic categories", () => {
-    expect(databaseFailureCategory(new Error("SSL connection failed"))).toBe("connection");
-    expect(databaseFailureCategory(new Error("password authentication failed"))).toBe("authentication");
-    expect(databaseFailureCategory(new Error("relation users does not exist"))).toBe("schema");
+  it("maps private-storage failures to safe readiness categories", () => {
+    expect(databaseFailureCategory(new Error("JWT is invalid"))).toBe("authentication");
+    expect(databaseFailureCategory(new Error("Bucket not found"))).toBe("schema");
+    expect(databaseFailureCategory(new Error("network timeout"))).toBe("connection");
   });
 });
