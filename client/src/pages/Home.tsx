@@ -72,8 +72,11 @@ export default function Home() {
   const readNotificationMutation = trpc.secureChat.readNotification.useMutation();
 
   const activeConversation = conversations.find(item => item.conversationId === selectedConversation);
+  const activePeerId = activeConversation?.kind === "direct" ? activeConversation.peer?.id : undefined;
+  const { data: activePeerProfile } = trpc.secureChat.friendProfile.useQuery({ userId: activePeerId ?? 0 }, { enabled: chatReady && Boolean(activePeerId), staleTime: 30_000 });
   const unreadCount = notifications.filter(item => !item.isRead).length;
   const conversationName = activeConversation?.kind === "group" ? activeConversation.title || "Study group" : activeConversation?.peer?.name || "University user";
+  const activePeerImageUrl = activePeerProfile?.profileImageUrl ?? activeConversation?.peer?.profileImageUrl;
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -203,7 +206,7 @@ export default function Home() {
               </div>
             </div>
             <button onClick={() => activeConversation.kind === "direct" && activeConversation.peer?.id && setFriendProfileUserId(activeConversation.peer.id)} className="mt-6 flex w-full items-center gap-4 text-left">
-              <ProfileAvatar src={activeConversation.peer?.profileImageUrl} name={conversationName} className="h-16 w-16 shrink-0 rounded-[1.35rem] border-2 border-white/10 bg-[#ffd1e1] text-lg" fallbackClassName="rounded-[1.25rem] bg-[#ffd1e1] font-black text-[#101722]" />
+              <ProfileAvatar src={activePeerImageUrl} name={conversationName} className="h-16 w-16 shrink-0 rounded-[1.35rem] border-2 border-white/10 bg-[#ffd1e1] text-lg" fallbackClassName="rounded-[1.25rem] bg-[#ffd1e1] font-black text-[#101722]" />
               <span className="min-w-0"><span className="block truncate text-2xl font-black tracking-tight md:text-3xl">{conversationName}</span><span className="chat-peer-meta mt-1 block truncate text-sm">{activeConversation.kind === "group" ? "Encrypted group" : "@" + (activeConversation.peer?.username ?? "friend")}</span></span>
             </button>
           </div>

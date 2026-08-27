@@ -201,3 +201,8 @@
 - [x] Render the other user’s authorized uploaded profile photo in the direct-chat header
 - [x] Improve light-mode chat surfaces, spacing, message bubbles, and composer contrast to match the approved mockup
 - [ ] Re-test the corrected direct-chat states on mobile and redeploy
+
+- [x] Replace the tiny incorrect chat-header logo with the approved signal-knot mark in the actual rendered component
+- [x] Trace the active conversation payload and render the recipient’s uploaded profile photo instead of the EO fallback
+- [x] Finish the remaining light-mode chat proportions and header polish against the approved mockup
+- [ ] Re-run production checks and verify a fresh mobile deployment after these corrections
