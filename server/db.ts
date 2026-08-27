@@ -427,6 +427,12 @@ export async function getUserByOpenId(openId: string) {
   return profile ? profileToUser(profile) : undefined;
 }
 
+async function getUserByOpenIdWithImage(openId: string) {
+  const profile = await readJson<RemoteProfile>(profilePath(subjectFromOpenId(openId)));
+  if (!profile) return undefined;
+  return { ...profileToUser(profile), profileImageUrl: await profileImageUrl(profile) };
+}
+
 export function selectSupabaseProfile<T>(byOpenId: T | undefined, byMatricNumber: T | undefined, byEmail: T | undefined) {
   return byOpenId ?? byMatricNumber ?? byEmail;
 }
@@ -473,6 +479,14 @@ export async function createLocalUser() {
   throw new Error("Local password profiles are not supported; SecureChat uses Supabase Auth.");
 }
 
+async function profileImageUrl(profile: RemoteProfile | undefined) {
+  if (!profile?.profileImagePath) return null;
+  const store = await getStore();
+  if (!store) return null;
+  const result = await store.storage.from(BUCKET).createSignedUrl(profile.profileImagePath, 60 * 15);
+  return result.error ? null : result.data?.signedUrl ?? null;
+}
+
 export async function searchUsers(currentUserId: number, query: string) {
   const needle = query.trim().toLowerCase();
   const currentSubject = await findSubjectByNumericId(currentUserId);
@@ -489,7 +503,7 @@ export async function searchUsers(currentUserId: number, query: string) {
     const request = currentSubject ? await readJson<StoredMessageRequest>(messageRequestPath(subject, directConversationId(currentSubject, subject))) : undefined;
     const friendRequestStatus = currentSubject && request?.senderSubject === currentSubject ? request.status : null;
     const storedProfile = await readJson<RemoteProfile>(profilePath(subject));
-    return { id: profile.id, subject, name: profile.name, username: profile.username ?? normalizedUsername(profile.name, subject), avatarStyle: storedProfile?.avatarStyle ?? "mint", publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, friendRequestStatus };
+    return { id: profile.id, subject, name: profile.name, username: profile.username ?? normalizedUsername(profile.name, subject), avatarStyle: storedProfile?.avatarStyle ?? "mint", profileImageUrl: await profileImageUrl(storedProfile), publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, friendRequestStatus };
   }));
 }
 
@@ -574,7 +588,7 @@ export async function getFriendProfile(userId: number, otherUserId: number) {
     readJson<RemoteProfile>(profilePath(subject)),
   ]);
   const relationship = conversation?.kind === "direct" && conversation.participants.includes(viewerSubject) ? "friends" as const : request?.senderSubject === viewerSubject && request.status === "pending" ? "pending" as const : "none" as const;
-  return { id: profile.id, name: profile.name, username: profile.username ?? normalizedUsername(profile.name, subject), avatarStyle: storedProfile?.avatarStyle ?? "mint", isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, relationship };
+  return { id: profile.id, name: profile.name, username: profile.username ?? normalizedUsername(profile.name, subject), avatarStyle: storedProfile?.avatarStyle ?? "mint", profileImageUrl: await profileImageUrl(storedProfile), isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt, relationship };
 }
 
 export async function updatePrivacySettings(userId: number, input: { readReceiptsEnabled: boolean }) {
@@ -828,7 +842,7 @@ export async function listConversations(userId: number) {
     title: index.title ?? null,
     pinned: index.pinned ?? false,
     muted: index.muted ?? false,
-    peer: index.kind === "direct" ? await getUserByOpenId(`supabase:${index.peerSubject}`) : await getUserByOpenId(`supabase:${index.peerSubject}`),
+    peer: index.kind === "direct" ? await getUserByOpenIdWithImage(`supabase:${index.peerSubject}`) : await getUserByOpenIdWithImage(`supabase:${index.peerSubject}`),
     groupKeyVersion: (await getConversationInfo(index.conversationId))?.groupKeyVersion ?? "v1",
     groupKeyEnvelope: (await getConversationInfo(index.conversationId))?.groupKeyEnvelopes[subject] ?? null,
     groupKeyEnvelopes: Object.fromEntries(Object.entries((await getConversationInfo(index.conversationId))?.groupKeyEnvelopesByVersion ?? {}).map(([version, envelopes]) => [version, envelopes[subject] ?? null])),

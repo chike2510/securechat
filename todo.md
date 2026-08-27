@@ -185,3 +185,13 @@
 - [x] Confirm the People directory is live after the successful later deployment
 - [ ] Visually verify on production that the initial loader shows only the SC logo with no visible loading text
 - [ ] Verify with two real production accounts that a person appears in People, a message request is accepted, and a direct chat opens
+
+
+## Regression history — 2026-08-27
+
+- [x] Copy the approved logo and built-in avatar assets into the GitHub project so Vercel serves them from the repository
+- [x] Return authorized signed profile-image URLs for friend discovery, friend profiles, and direct-conversation peers
+- [x] Restructure the direct-chat mobile shell with a separated header, scrollable message area, and fixed composer matching the approved mockup direction
+- [ ] Production screenshot shows the new logo URL is missing after deployment
+- [ ] Production screenshot shows another user’s profile photo is not rendered
+- [ ] Production screenshot shows the direct-chat layout is cramped and does not match the approved mockup

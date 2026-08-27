@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     secureChat: {
-      friendProfile: { useQuery: () => ({ data: { id: 2, name: "Adaeze Okafor", username: "adaeze", avatarStyle: "violet", isOnline: true, relationship: "friends" }, isLoading: false, refetch: vi.fn() }) },
+      friendProfile: { useQuery: () => ({ data: { id: 2, name: "Adaeze Okafor", username: "adaeze", avatarStyle: "violet", profileImageUrl: "https://cdn.example/profile.jpg", isOnline: true, relationship: "friends" }, isLoading: false, refetch: vi.fn() }) },
       requestMessage: { useMutation: () => ({ mutateAsync: mocks.requestMessage, isPending: false }) },
       openConversation: { useMutation: () => ({ mutateAsync: mocks.openConversation, isPending: false }) },
     },
@@ -27,6 +27,7 @@ describe("FriendProfileDialog", () => {
   it("shows a username without an email and opens an accepted friend chat from Message", async () => {
     render(<FriendProfileDialog userId={2} open onOpenChange={vi.fn()} onConversationOpen={mocks.onConversationOpen} />);
     expect(screen.getByText("@adaeze")).toBeTruthy();
+    expect(document.querySelector('img[alt=""]')?.getAttribute("src")).toBe("https://cdn.example/profile.jpg");
     expect(screen.queryByText(/@.*gmail|@.*yahoo/i)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Message" }));
