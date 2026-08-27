@@ -45,6 +45,7 @@ vi.mock("@/lib/trpc", () => ({
       messages: { useQuery: query },
       notifications: { useQuery: query },
       profileSettings: { useQuery: query },
+      updateProfile: { useMutation: mutation },
       messageRequests: { useQuery: query },
       blockedUsers: { useQuery: query },
       downloadEncryptedAttachment: { useQuery: () => ({ ...query(), refetch: vi.fn() }) },
@@ -90,6 +91,11 @@ describe("Home authenticated handoff", () => {
     expect(screen.getByText("ada@example.com")).toBeTruthy();
     expect(screen.getByText("Message requests")).toBeTruthy();
     expect(screen.getByText("Profile & settings")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Profile & settings"));
+    expect(screen.getByRole("heading", { name: "Your profile" })).toBeTruthy();
+    expect(screen.getByText("Illustrated avatar")).toBeTruthy();
+    expect(screen.getByText(/upload picture/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(logout).toHaveBeenCalledTimes(1);

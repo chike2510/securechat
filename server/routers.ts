@@ -26,6 +26,7 @@ import {
   setUserPresence,
   unblockUser,
   updatePrivacySettings,
+  updateProfileSettings,
   updateMessageStatus,
   uploadEncryptedAttachment,
 } from "./db.js";
@@ -50,6 +51,7 @@ export const appRouter = router({
   secureChat: router({
     searchUsers: universityProcedure.input(z.object({ query: z.string().max(80).default("") })).query(({ ctx, input }) => searchUsers(ctx.user.id, input.query)),
     profileSettings: universityProcedure.query(({ ctx }) => getProfileSettings(ctx.user.id)),
+    updateProfile: universityProcedure.input(z.object({ name: z.string().trim().min(2).max(60), avatarStyle: z.enum(["ink", "mint", "rose", "violet"]), imageData: z.string().max(700_000).nullable().optional(), imageType: z.enum(["image/jpeg", "image/png", "image/webp"]).nullable().optional(), clearImage: z.boolean().optional() })).mutation(({ ctx, input }) => updateProfileSettings(ctx.user.id, input)),
     updatePrivacy: universityProcedure.input(z.object({ readReceiptsEnabled: z.boolean() })).mutation(({ ctx, input }) => updatePrivacySettings(ctx.user.id, input)),
     messageRequests: universityProcedure.query(({ ctx }) => listMessageRequests(ctx.user.id)),
     requestMessage: universityProcedure.input(z.object({ userId: z.number().int().positive() })).mutation(({ ctx, input }) => createMessageRequest(ctx.user.id, input.userId)),

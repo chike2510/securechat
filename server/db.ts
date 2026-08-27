@@ -5,6 +5,7 @@ import { advanceMessageStatus, notificationFor } from "../shared/message-lifecyc
 
 const BUCKET = "securechat-private-v1";
 const MAX_ENCRYPTED_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+const MAX_PROFILE_IMAGE_BYTES = 512 * 1024;
 
 type StorageEnv = {
   SUPABASE_URL?: string;
@@ -25,6 +26,9 @@ type RemoteProfile = {
   role: "user" | "admin";
   publicKey: string | null;
   readReceiptsEnabled: boolean;
+  avatarStyle: "ink" | "mint" | "rose" | "violet";
+  profileImagePath: string | null;
+  profileImageType: "image/jpeg" | "image/png" | "image/webp" | null;
   lastSeenAt: string | null;
   isOnline: boolean;
   createdAt: string;
@@ -138,7 +142,7 @@ async function ensureBucket(client: SupabaseClient) {
   const options = {
     public: false,
     fileSizeLimit: String(MAX_ENCRYPTED_ATTACHMENT_BYTES),
-    allowedMimeTypes: ["application/json", "application/octet-stream"],
+    allowedMimeTypes: ["application/json", "application/octet-stream", "image/jpeg", "image/png", "image/webp"],
   };
   if (!existing.error) {
     const updated = await client.storage.updateBucket(BUCKET, options);
@@ -237,6 +241,10 @@ function attachmentPath(conversationId: number, attachmentId: number) {
   return `attachments/${conversationId}/${attachmentId}.bin`;
 }
 
+function profileImagePath(subject: string, imageId: number) {
+  return `profile-images/${subject}/${imageId}.bin`;
+}
+
 function messageIndexPath(subject: string, messageId: number) {
   return `inboxes/${subject}/messages/${messageId}.json`;
 }
@@ -275,12 +283,12 @@ async function writeJson(path: string, value: unknown) {
   if (error) throw error;
 }
 
-async function writeBinary(path: string, bytes: Uint8Array) {
+async function writeBinary(path: string, bytes: Uint8Array, contentType = "application/octet-stream") {
   const store = await getStore();
   if (!store) throw new Error("SecureChat private storage is unavailable");
   const { error } = await store.storage.from(BUCKET).upload(path, bytes, {
     upsert: false,
-    contentType: "application/octet-stream",
+    contentType,
     cacheControl: "no-store",
   });
   if (error) throw error;
@@ -324,6 +332,9 @@ function profileFromAuthUser(user: SupabaseAuthUser, previous?: RemoteProfile): 
     role: previous?.role ?? "user",
     publicKey: previous?.publicKey ?? null,
     readReceiptsEnabled: previous?.readReceiptsEnabled ?? true,
+    avatarStyle: previous?.avatarStyle ?? "mint",
+    profileImagePath: previous?.profileImagePath ?? null,
+    profileImageType: previous?.profileImageType ?? null,
     lastSeenAt: previous?.lastSeenAt ?? null,
     isOnline: previous?.isOnline ?? false,
     createdAt: previous?.createdAt ?? user.created_at ?? timestamp,
@@ -371,12 +382,15 @@ async function ensureProfile(input: { openId: string; email: string | null; name
   const timestamp = now();
   const profile: RemoteProfile = {
     subject,
-    name: input.name,
+    name: previous?.name ?? input.name,
     email: input.email,
     matricNumber: input.matricNumber.toUpperCase(),
     role: previous?.role ?? "user",
     publicKey: previous?.publicKey ?? null,
     readReceiptsEnabled: previous?.readReceiptsEnabled ?? true,
+    avatarStyle: previous?.avatarStyle ?? "mint",
+    profileImagePath: previous?.profileImagePath ?? null,
+    profileImageType: previous?.profileImageType ?? null,
     lastSeenAt: previous?.lastSeenAt ?? null,
     isOnline: previous?.isOnline ?? false,
     createdAt: previous?.createdAt ?? timestamp,
@@ -485,12 +499,42 @@ export async function getProfileSettings(userId: number) {
   const subject = await subjectForUserId(userId);
   const profile = await readJson<RemoteProfile>(profilePath(subject));
   if (!profile) throw new Error("SecureChat profile is unavailable");
+  const store = await getStore();
+  const image = profile.profileImagePath && store ? await store.storage.from(BUCKET).createSignedUrl(profile.profileImagePath, 60 * 15) : null;
   return {
     name: profile.name,
     email: profile.email,
     matricNumber: profile.matricNumber,
     readReceiptsEnabled: profile.readReceiptsEnabled ?? true,
+    avatarStyle: profile.avatarStyle ?? "mint",
+    profileImageUrl: image?.error ? null : image?.data?.signedUrl ?? null,
   };
+}
+
+export async function updateProfileSettings(userId: number, input: { name: string; avatarStyle: RemoteProfile["avatarStyle"]; imageData?: string | null; imageType?: NonNullable<RemoteProfile["profileImageType"]> | null; clearImage?: boolean }) {
+  let imagePath: string | null | undefined;
+  let imageType: RemoteProfile["profileImageType"] | undefined;
+  if (input.imageData) {
+    if (!input.imageType) throw new Error("Profile image type is required");
+    const bytes = Buffer.from(input.imageData, "base64");
+    if (!bytes.byteLength || bytes.byteLength > MAX_PROFILE_IMAGE_BYTES) throw new Error("Profile image must be 512 KB or smaller");
+    const subject = await subjectForUserId(userId);
+    imagePath = profileImagePath(subject, Date.now());
+    await writeBinary(imagePath, bytes, input.imageType);
+    imageType = input.imageType;
+  } else if (input.clearImage) {
+    imagePath = null;
+    imageType = null;
+  }
+  const profile = await updateProfileForUserId(userId, (current) => ({
+    ...current,
+    name: input.name.trim(),
+    avatarStyle: input.avatarStyle,
+    profileImagePath: imagePath === undefined ? current.profileImagePath : imagePath,
+    profileImageType: imageType === undefined ? current.profileImageType : imageType,
+    updatedAt: now(),
+  }));
+  return { name: profile.name, avatarStyle: profile.avatarStyle, profileImageUpdated: imagePath !== undefined };
 }
 
 export async function updatePrivacySettings(userId: number, input: { readReceiptsEnabled: boolean }) {

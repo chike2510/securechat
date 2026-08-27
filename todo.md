@@ -155,3 +155,7 @@
 - [x] Add browser-encrypted attachment sharing with private media persistence
 - [x] Add browser-encrypted recorded voice notes with in-chat playback
 - [ ] Deploy and verify the expanded SecureChat platform feature set before beginning report preparation
+- [x] Expand Profile & Settings into a fuller editable account page
+- [x] Support an optional built-in avatar style or uploaded profile picture
+- [x] Replace “Create encrypted group” and repetitive encryption copy with simpler group language
+- [ ] Deploy and verify the profile presentation and profile-picture choice on mobile
