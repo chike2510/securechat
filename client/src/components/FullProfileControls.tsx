@@ -10,10 +10,10 @@ import { toast } from "sonner";
 type Style = "ink" | "mint" | "rose" | "violet";
 type ChatUser = { id: number; name?: string | null; username?: string | null; email?: string | null; matricNumber?: string | null };
 const illustratedAvatars: Record<Style, string> = {
-  mint: "/manus-storage/securechat-avatar-smile_635298be.png",
-  violet: "/manus-storage/securechat-avatar-headphones_939036c4.png",
-  rose: "/manus-storage/securechat-avatar-bucket-hat_d5d97374.png",
-  ink: "/manus-storage/securechat-avatar-yellow-hoodie_6195fb3d.png",
+  mint: "/manus-storage/securechat-avatar-smile_faf5afe6.png",
+  violet: "/manus-storage/securechat-avatar-headphones_beece622.png",
+  rose: "/manus-storage/securechat-avatar-bucket-hat_795cb7ed.png",
+  ink: "/manus-storage/securechat-avatar-yellow-hoodie_45aa574d.png",
 };
 function Avatar({ name, style = "mint", image, large = false }: { name?: string | null; style?: Style; image?: string | null; large?: boolean }) {
   const dimensions = large ? "h-24 w-24 text-2xl" : "h-8 w-8 text-xs";

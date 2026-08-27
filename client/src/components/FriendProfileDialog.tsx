@@ -6,10 +6,10 @@ import { Check, ChevronLeft, MessageCircle, UserRoundPlus } from "lucide-react";
 import { toast } from "sonner";
 
 const avatars = {
-  mint: "/manus-storage/securechat-avatar-smile_635298be.png",
-  violet: "/manus-storage/securechat-avatar-headphones_939036c4.png",
-  rose: "/manus-storage/securechat-avatar-bucket-hat_d5d97374.png",
-  ink: "/manus-storage/securechat-avatar-yellow-hoodie_6195fb3d.png",
+  mint: "/manus-storage/securechat-avatar-smile_faf5afe6.png",
+  violet: "/manus-storage/securechat-avatar-headphones_beece622.png",
+  rose: "/manus-storage/securechat-avatar-bucket-hat_795cb7ed.png",
+  ink: "/manus-storage/securechat-avatar-yellow-hoodie_45aa574d.png",
 } as const;
 
 type FriendProfileDialogProps = {

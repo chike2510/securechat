@@ -15,6 +15,7 @@ const authState = vi.hoisted(() => ({
 
 const themeState = vi.hoisted(() => ({ theme: "light" as "light" | "dark", toggleTheme: vi.fn() }));
 const directoryState = vi.hoisted(() => ({ people: [] as Array<{ id: number; name: string; username: string; friendRequestStatus: "pending" | "accepted" | null }>, requestResult: { requestId: 2, status: "pending" as const, alreadyPending: false } }));
+const workspaceState = vi.hoisted(() => ({ conversations: [] as any[], messages: [] as any[] }));
 const mutation = () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(1), isPending: false });
 const query = () => ({ data: [], isLoading: false, error: null });
 
@@ -43,10 +44,10 @@ vi.mock("@/lib/trpc", () => ({
       blockUser: { useMutation: mutation },
       setConversationPreference: { useMutation: mutation },
       createGroup: { useMutation: mutation },
-      conversations: { useQuery: query },
+      conversations: { useQuery: () => ({ data: workspaceState.conversations, isLoading: false, error: null }) },
       searchUsers: { useQuery: () => ({ data: directoryState.people, isLoading: false, error: null }) },
       friendProfile: { useQuery: query },
-      messages: { useQuery: query },
+      messages: { useQuery: () => ({ data: workspaceState.messages, isLoading: false, error: null }) },
       notifications: { useQuery: query },
       profileSettings: { useQuery: query },
       updateProfile: { useMutation: mutation },
@@ -74,6 +75,8 @@ describe("Home authenticated handoff", () => {
     authState.value = { user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" }, loading: false, isAuthenticated: true, databaseProfileReady: true, logout: vi.fn() };
     directoryState.people = [];
     directoryState.requestResult = { requestId: 2, status: "pending", alreadyPending: false };
+    workspaceState.conversations = [];
+    workspaceState.messages = [];
   });
 
   it("renders the chat workspace when OTP verification has produced an authenticated user", async () => {
@@ -132,6 +135,21 @@ describe("Home authenticated handoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Find friend" }));
     expect(screen.getByText("@elisha")).toBeTruthy();
     expect(screen.queryByText("elisha@example.com")).toBeNull();
+  });
+
+  it("renders the mockup-aligned direct-chat structure for a selected conversation", async () => {
+    workspaceState.conversations = [{ conversationId: 7, kind: "direct", title: null, peer: { id: 2, name: "Elisha Onovo", username: "elisha", profileImageUrl: null, isOnline: true, publicKey: "peer-key" }, pinned: false, muted: false, hidden: false }];
+    const { default: Home } = await import("./Home");
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Elisha Onovo/ }));
+    expect(screen.getAllByText("SecureChat").length).toBeGreaterThan(0);
+    expect(screen.getByText("@elisha")).toBeTruthy();
+    expect(screen.getAllByText("Private chat").length).toBe(2);
+    expect(screen.getByPlaceholderText("Write a message")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Attach encrypted file" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Record voice note" })).toBeTruthy();
+    expect(screen.getByText("Encrypted on this device before sending")).toBeTruthy();
   });
 
   it("keeps a verified user inside a truthful workspace state while the message database is unavailable", async () => {
