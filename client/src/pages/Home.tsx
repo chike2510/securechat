@@ -161,7 +161,7 @@ export default function Home() {
     toast.success("User blocked");
   };
 
-  if (loading) return <div className="min-h-screen blueprint-bg flex items-center justify-center"><div className="font-mono text-xs uppercase tracking-[0.28em] text-slate-500 animate-pulse">Loading SecureChat</div></div>;
+  if (loading) return <main className="min-h-screen blueprint-bg flex items-center justify-center"><div role="status" aria-label="Loading SecureChat" className="grid h-14 w-14 place-items-center rounded-sm bg-[#101722] text-white font-mono font-bold shadow-[0_12px_32px_rgba(16,23,34,0.18)] animate-pulse">SC</div></main>;
   if (!isAuthenticated || !user) return <AuthLanding />;
   if (!databaseProfileReady) return <WorkspaceDatabasePending user={user} logout={logout} />;
 

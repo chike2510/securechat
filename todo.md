@@ -165,3 +165,4 @@
 - [x] Use an icon-only return arrow rather than “Back to chat” text in the approved profile design
 - [x] Apply the approved casual-profile layout and icon-only return control to the live SecureChat profile experience
 - [x] Add a persistent light/dark mode switch for the full SecureChat interface
+- [x] Replace the initial text loading screen with a logo-only SecureChat loading state

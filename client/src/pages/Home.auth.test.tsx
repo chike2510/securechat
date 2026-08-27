@@ -83,6 +83,15 @@ describe("Home authenticated handoff", () => {
     expect(screen.getByRole("button", { name: "Use dark mode" })).toBeTruthy();
   });
 
+  it("shows only the SecureChat logo while the authenticated workspace is loading", async () => {
+    authState.value = { user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" }, loading: true, isAuthenticated: true, databaseProfileReady: true, logout: vi.fn() };
+    const { default: Home } = await import("./Home");
+    render(<Home />);
+
+    expect(screen.getByRole("status", { name: "Loading SecureChat" }).textContent).toBe("SC");
+    expect(screen.queryByText("Loading SecureChat")).toBeNull();
+  });
+
   it("opens a profile menu without signing out until sign out is explicitly chosen", async () => {
     const logout = vi.fn();
     authState.value = { user: { id: 1, name: "Ada FUPRE", email: "ada@example.com" }, loading: false, isAuthenticated: true, databaseProfileReady: true, logout };
