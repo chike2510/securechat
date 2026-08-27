@@ -81,6 +81,8 @@ describe("Home authenticated handoff", () => {
     expect(screen.queryByText("Local key")).toBeNull();
     expect(screen.getByRole("button", { name: /new group/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Use dark mode" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "People" }));
+    expect(screen.getByText("Other registered students")).toBeTruthy();
   });
 
   it("shows only the SecureChat logo while the authenticated workspace is loading", async () => {

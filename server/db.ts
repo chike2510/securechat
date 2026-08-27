@@ -471,10 +471,15 @@ export async function searchUsers(currentUserId: number, query: string) {
     return profile ? profileToUser(profile) : undefined;
   }));
   const profiles = results.filter((profile): profile is User => profile !== undefined);
-  return profiles.filter((profile) => profile.id !== currentUserId)
-    .filter((profile) => !needle || `${profile.name ?? ""} ${profile.email ?? ""} ${profile.matricNumber}`.toLowerCase().includes(needle))
+  return profiles.filter((profile) => isDiscoverableProfile(profile, currentUserId, needle))
     .slice(0, 30)
     .map((profile) => ({ id: profile.id, subject: subjectFromOpenId(profile.openId), name: profile.name, email: profile.email, publicKey: profile.publicKey, isOnline: profile.isOnline, lastSeenAt: profile.lastSeenAt }));
+}
+
+export function isDiscoverableProfile(profile: Pick<User, "id" | "name" | "email" | "matricNumber">, currentUserId: number, query: string) {
+  const needle = query.trim().toLowerCase();
+  if (profile.id === currentUserId) return false;
+  return !needle || `${profile.name ?? ""} ${profile.email ?? ""} ${profile.matricNumber}`.toLowerCase().includes(needle);
 }
 
 async function updateProfileForUserId(userId: number, update: (profile: RemoteProfile) => RemoteProfile) {

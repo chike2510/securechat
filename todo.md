@@ -166,3 +166,5 @@
 - [x] Apply the approved casual-profile layout and icon-only return control to the live SecureChat profile experience
 - [x] Add a persistent light/dark mode switch for the full SecureChat interface
 - [x] Replace the initial text loading screen with a logo-only SecureChat loading state
+- [x] Repair registered-student discovery so another active SecureChat account appears in contact search
+- [x] Add a dedicated People view for browsing registered students and sending a message request
