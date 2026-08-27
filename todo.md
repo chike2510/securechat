@@ -159,3 +159,9 @@
 - [x] Support an optional built-in avatar style or uploaded profile picture
 - [x] Replace “Create encrypted group” and repetitive encryption copy with simpler group language
 - [ ] Deploy and verify the profile presentation and profile-picture choice on mobile
+- [x] Create and approve a mobile profile mockup with a clear back-to-chat control before changing the live profile design
+- [x] Add an explicit Back to chat control to the mobile profile experience after mockup approval
+- [x] Use casual everyday avatar styles rather than academic-looking portraits in the approved profile design
+- [x] Use an icon-only return arrow rather than “Back to chat” text in the approved profile design
+- [x] Apply the approved casual-profile layout and icon-only return control to the live SecureChat profile experience
+- [x] Add a persistent light/dark mode switch for the full SecureChat interface

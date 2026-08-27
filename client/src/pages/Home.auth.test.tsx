@@ -13,10 +13,12 @@ const authState = vi.hoisted(() => ({
   },
 }));
 
+const themeState = vi.hoisted(() => ({ theme: "light" as "light" | "dark", toggleTheme: vi.fn() }));
 const mutation = () => ({ mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue(1), isPending: false });
 const query = () => ({ data: [], isLoading: false, error: null });
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => authState.value }));
+vi.mock("@/contexts/ThemeContext", () => ({ useTheme: () => themeState }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({
@@ -78,6 +80,7 @@ describe("Home authenticated handoff", () => {
     expect(screen.queryByText("University communications / v1.0")).toBeNull();
     expect(screen.queryByText("Local key")).toBeNull();
     expect(screen.getByRole("button", { name: /new group/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Use dark mode" })).toBeTruthy();
   });
 
   it("opens a profile menu without signing out until sign out is explicitly chosen", async () => {
@@ -100,6 +103,7 @@ describe("Home authenticated handoff", () => {
     expect(screen.getByRole("button", { name: "Choose mint avatar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Choose rose avatar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Choose violet avatar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Back to chat" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(logout).toHaveBeenCalledTimes(1);

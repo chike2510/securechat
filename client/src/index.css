@@ -28,6 +28,26 @@
   --font-mono: 'DM Mono', ui-monospace, monospace;
 }
 
+.dark {
+  --background: #111827;
+  --foreground: #f6f8fb;
+  --card: #182231;
+  --card-foreground: #f6f8fb;
+  --popover: #1b2635;
+  --popover-foreground: #f6f8fb;
+  --primary: #c8f7f1;
+  --primary-foreground: #101722;
+  --secondary: #263448;
+  --secondary-foreground: #f6f8fb;
+  --muted: #223044;
+  --muted-foreground: #aab7c7;
+  --accent: #244e50;
+  --accent-foreground: #f6f8fb;
+  --border: rgba(226, 232, 240, 0.16);
+  --input: rgba(226, 232, 240, 0.22);
+  --ring: #c8f7f1;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -60,6 +80,13 @@ body { background: var(--background); color: var(--foreground); font-family: var
 button, input, textarea { font: inherit; }
 button { transition: transform 160ms cubic-bezier(.23,1,.32,1), background-color 160ms ease, color 160ms ease; }
 button:active:not(:disabled) { transform: scale(.97); }
-.blueprint-bg { background-color: #f8fafc; background-image: linear-gradient(rgba(28, 52, 71, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(28, 52, 71, .055) 1px, transparent 1px), radial-gradient(circle at 78% 18%, rgba(200,247,241,.55), transparent 22rem), radial-gradient(circle at 13% 86%, rgba(255,215,229,.42), transparent 20rem); background-size: 28px 28px, 28px 28px, auto, auto; }
+.blueprint-bg { background-color: var(--background); background-image: linear-gradient(rgba(28, 52, 71, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(28, 52, 71, .055) 1px, transparent 1px), radial-gradient(circle at 78% 18%, rgba(200,247,241,.55), transparent 22rem), radial-gradient(circle at 13% 86%, rgba(255,215,229,.42), transparent 20rem); background-size: 28px 28px, 28px 28px, auto, auto; }
+.dark .blueprint-bg { background-image: linear-gradient(rgba(186, 216, 230, .07) 1px, transparent 1px), linear-gradient(90deg, rgba(186, 216, 230, .07) 1px, transparent 1px), radial-gradient(circle at 78% 18%, rgba(62, 125, 122,.30), transparent 24rem), radial-gradient(circle at 13% 86%, rgba(116, 73, 100,.20), transparent 22rem); }
+.dark .bg-white, .dark .bg-white\/75, .dark .bg-white\/80, .dark .bg-white\/85, .dark .bg-\[\#fbfcfd\]\/80 { background-color: var(--card) !important; }
+.dark .bg-slate-50 { background-color: #202d3e !important; }
+.dark .text-\[\#101722\], .dark .text-slate-900, .dark .text-slate-800, .dark .text-slate-700 { color: var(--foreground) !important; }
+.dark .text-slate-600, .dark .text-slate-500, .dark .text-slate-400 { color: var(--muted-foreground) !important; }
+.dark .border-slate-900\/10, .dark .border-slate-900\/15, .dark .border-slate-200, .dark .border-slate-100, .dark .border-slate-300 { border-color: var(--border) !important; }
+.dark input, .dark textarea { color: var(--foreground); }
 @media (prefers-reduced-motion: no-preference) { .blueprint-bg > * { animation: rise-in 420ms cubic-bezier(.23,1,.32,1) both; } }
 @keyframes rise-in { from { opacity: .2; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
