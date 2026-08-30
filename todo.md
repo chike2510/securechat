@@ -212,3 +212,8 @@
 - [x] Render louder speech as taller waveform bars and quieter speech as shorter bars during playback
 - [x] Add responsive playback progress and controls without losing the curved mobile layout
 - [ ] Test voice recording, encrypted upload/download, waveform rendering, and playback on mobile
+
+- [x] Remove visible button boxes behind the attachment and microphone icons in the mobile composer
+- [x] Prevent text and voice-note messages from overflowing the mobile chat panel
+- [x] Replace the redundant SecureChat label in the chat header with the active other-user username
+- [ ] Re-test the corrected mobile chat layout and deploy it
