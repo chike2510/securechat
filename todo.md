@@ -217,3 +217,10 @@
 - [x] Prevent text and voice-note messages from overflowing the mobile chat panel
 - [x] Replace the redundant SecureChat label in the chat header with the active other-user username
 - [ ] Re-test the corrected mobile chat layout and deploy it
+
+## Verification boundary — 2026-08-31
+
+- [x] Push the mobile chat correction checkpoint to `chike2510/securechat` main
+- [x] Confirm GitHub’s Vercel status reports the production deployment as successful for commit `30505d7`
+- [x] Re-run the final automated validation: 50 Vitest tests, TypeScript check, and production client build
+- [ ] Complete authenticated production mobile inspection after the owner provides an accessible public alias or browser session; the generated Vercel deployment is protected by SSO and the local sandbox has no Supabase integration variables
