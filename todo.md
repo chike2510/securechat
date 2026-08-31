@@ -224,3 +224,8 @@
 - [x] Confirm GitHub’s Vercel status reports the production deployment as successful for commit `30505d7`
 - [x] Re-run the final automated validation: 50 Vitest tests, TypeScript check, and production client build
 - [ ] Complete authenticated production mobile inspection after the owner provides an accessible public alias or browser session; the generated Vercel deployment is protected by SSO and the local sandbox has no Supabase integration variables
+
+## Deployment workflow correction — 2026-08-31
+
+- [x] Fix the GitHub Actions Vercel deployment workflow failure caused by passing an empty `--token=""` value during `vercel pull`
+- [x] Validate the corrected workflow configuration and push it to `chike2510/securechat`

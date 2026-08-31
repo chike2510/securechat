@@ -1,4 +1,4 @@
-name: Deploy SecureChat to Vercel
+name: Validate SecureChat before Vercel deployment
 
 on:
   push:
@@ -10,16 +10,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: vercel-production
+  group: securechat-main-validation
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Build and deploy to Vercel
+  validate:
+    name: Validate before Vercel deployment
     runs-on: ubuntu-latest
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -42,14 +39,6 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Install Vercel CLI
-        run: pnpm dlx vercel@latest --version
-
-      - name: Pull Vercel project settings
-        run: pnpm dlx vercel@latest pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
-
-      - name: Build Vercel output
-        run: pnpm dlx vercel@latest build --prod --token="${{ secrets.VERCEL_TOKEN }}"
-
-      - name: Deploy to production
-        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      # Vercel's GitHub integration performs the production deployment for main.
+      # Keeping deployment out of this workflow avoids requiring a Vercel API
+      # secret and prevents an empty credential from reaching the Vercel CLI.
