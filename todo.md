@@ -250,3 +250,10 @@
 - [x] Run 52 automated tests, TypeScript check, and production build after the responsive and recovery changes
 - [x] Capture a narrow mobile preview; the sandbox displays the expected public-auth setup fallback because its Supabase variables are unavailable
 - [ ] Confirm the uploaded peer profile photo renders in the authenticated production chat on the owner’s public alias
+
+
+## Production peer-photo result — 2026-09-01
+
+- [x] Inspect the authenticated production conversation and friend-profile payload
+- [x] Confirm private storage readiness is healthy
+- [ ] Have the peer account upload and save its profile picture again through Profile & Settings, then recheck that the signed URL appears in the conversation payload
