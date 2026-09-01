@@ -480,12 +480,32 @@ export async function createLocalUser() {
   throw new Error("Local password profiles are not supported; SecureChat uses Supabase Auth.");
 }
 
+export function selectLatestProfileImagePath(subject: string, names: string[]) {
+  const candidates = names.filter(name => /^\d+\.bin$/.test(name)).sort((a, b) => Number(b.slice(0, -4)) - Number(a.slice(0, -4)));
+  return candidates[0] ? `profile-images/${subject}/${candidates[0]}` : null;
+}
+
+async function latestProfileImagePath(store: SupabaseClient, subject: string) {
+  const prefix = `profile-images/${subject}`;
+  const { data, error } = await store.storage.from(BUCKET).list(prefix, { limit: 100, offset: 0, sortBy: { column: "name", order: "desc" } });
+  if (error) return null;
+  return selectLatestProfileImagePath(subject, (data ?? []).map(item => item.name));
+}
+
 async function profileImageUrl(profile: RemoteProfile | undefined) {
-  if (!profile?.profileImagePath) return null;
+  if (!profile) return null;
   const store = await getStore();
   if (!store) return null;
-  const result = await store.storage.from(BUCKET).createSignedUrl(profile.profileImagePath, 60 * 15);
-  return result.error ? null : result.data?.signedUrl ?? null;
+  const paths = profile.profileImagePath ? [profile.profileImagePath] : [];
+  if (profile.subject) {
+    const discovered = await latestProfileImagePath(store, profile.subject);
+    if (discovered && !paths.includes(discovered)) paths.push(discovered);
+  }
+  for (const path of paths) {
+    const result = await store.storage.from(BUCKET).createSignedUrl(path, 60 * 15);
+    if (!result.error && result.data?.signedUrl) return result.data.signedUrl;
+  }
+  return null;
 }
 
 export async function searchUsers(currentUserId: number, query: string) {

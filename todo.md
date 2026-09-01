@@ -257,3 +257,11 @@
 - [x] Inspect the authenticated production conversation and friend-profile payload
 - [x] Confirm private storage readiness is healthy
 - [ ] Have the peer account upload and save its profile picture again through Profile & Settings, then recheck that the signed URL appears in the conversation payload
+
+
+## Peer-photo fallback implementation — 2026-09-01
+
+- [x] Add a private-storage lookup for the newest valid `profile-images/<subject>/*.bin` object when profile metadata is missing or stale
+- [x] Cover the fallback object selection with a server regression test
+- [x] Re-run the complete 53-test suite and TypeScript check
+- [ ] Deploy the fallback and verify `profileImageUrl` is non-null in the authenticated production conversation payload

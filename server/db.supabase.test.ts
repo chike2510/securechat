@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { friendRequestResult, isDiscoverableProfile, selectSupabaseProfile } from "./db.js";
+import { friendRequestResult, isDiscoverableProfile, selectLatestProfileImagePath, selectSupabaseProfile } from "./db.js";
 
 describe("Supabase profile reuse", () => {
   it("prefers the Supabase identity, then matric number, then email", () => {
@@ -21,6 +21,11 @@ describe("Supabase profile reuse", () => {
     expect(isDiscoverableProfile(elisha, 8, "COS/2024")).toBe(true);
     expect(isDiscoverableProfile(elisha, 8, "@elisha")).toBe(true);
     expect(isDiscoverableProfile(elisha, 14, "elisha")).toBe(false);
+  });
+
+  it("selects the newest valid profile-image object for a subject", () => {
+    expect(selectLatestProfileImagePath("supabase-user", ["notes.json", "1700.bin", "1900.bin", "avatar.webp"])).toBe("profile-images/supabase-user/1900.bin");
+    expect(selectLatestProfileImagePath("supabase-user", ["notes.json", "avatar.webp"])).toBeNull();
   });
 
   it("marks an existing pending friend request without creating a second one", () => {
