@@ -235,3 +235,18 @@
 
 - [x] Confirm the corrected GitHub Actions workflow completed successfully for commit `912b441`
 - [x] Confirm Vercel’s GitHub deployment status completed successfully for commit `912b441`
+
+## Mobile responsiveness and multi-device recovery — 2026-08-31
+
+- [x] Correct the mobile chat shell so the viewport is never wider than the device and message cards remain fully visible
+- [x] Preserve a polished responsive layout at desktop widths while using mobile-first sizing constraints
+- [ ] Repair peer profile-photo rendering in the direct-chat header and retain a safe avatar fallback only when the photo genuinely fails
+- [x] Define a secure multi-device chat-recovery flow so encrypted history can be recovered without storing plaintext or exposing private keys
+- [x] Add regression coverage for responsive chat constraints, peer-photo URL handling, and encrypted recovery behavior
+
+
+## Mobile follow-up verification — 2026-09-01
+
+- [x] Run 52 automated tests, TypeScript check, and production build after the responsive and recovery changes
+- [x] Capture a narrow mobile preview; the sandbox displays the expected public-auth setup fallback because its Supabase variables are unavailable
+- [ ] Confirm the uploaded peer profile photo renders in the authenticated production chat on the owner’s public alias

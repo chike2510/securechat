@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { decryptAttachment, decryptGroupMessage, encryptAttachment, encryptGroupMessage, ensureIdentity, prepareGroupKey, saveGroupKey } from "./crypto";
+import { decryptAttachment, decryptGroupMessage, encryptAttachment, encryptGroupMessage, ensureIdentity, exportEncryptedRecoveryBundle, importEncryptedRecoveryBundle, prepareGroupKey, saveGroupKey } from "./crypto";
 
 const identityKey = "securechat.identity.v1";
 
@@ -63,6 +63,16 @@ describe("SecureChat group and attachment encryption", () => {
     localStorage.setItem(identityKey, chikaIdentity);
     await expect(decryptGroupMessage(411, earlierMessage.ciphertext, earlierMessage.iv, null, "v1")).rejects.toThrow("encrypted key");
     await expect(decryptGroupMessage(411, laterMessage.ciphertext, laterMessage.iv, second.envelopes.chika, "v2")).resolves.toContain("Welcome");
+  });
+
+  it("restores the same identity from a passphrase-wrapped recovery bundle", async () => {
+    const originalPublicKey = await ensureIdentity();
+    const recovery = await exportEncryptedRecoveryBundle("correct horse battery staple");
+    expect(recovery).not.toContain(JSON.parse(currentIdentity()).privateKey.d);
+    localStorage.clear();
+    await expect(importEncryptedRecoveryBundle(recovery, "wrong passphrase here")).rejects.toThrow("incorrect");
+    await expect(importEncryptedRecoveryBundle(recovery, "correct horse battery staple")).resolves.toBe(originalPublicKey);
+    expect(await ensureIdentity()).toBe(originalPublicKey);
   });
 
   it("encrypts and decrypts attachment bytes with the direct conversation key", async () => {

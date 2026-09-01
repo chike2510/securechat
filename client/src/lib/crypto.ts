@@ -1,8 +1,28 @@
 const IDENTITY_KEY = "securechat.identity.v1";
 const CONVERSATION_KEY_PREFIX = "securechat.conversation-key.";
 const GROUP_KEY_PREFIX = "securechat.group-key.";
+const RECOVERY_VERSION = 1;
 
 type Identity = { publicKey: JsonWebKey; privateKey: JsonWebKey };
+type RecoveryBundle = { version: number; salt: string; iv: string; ciphertext: string };
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+async function recoveryKey(passphrase: string, salt: Uint8Array) {
+  if (passphrase.length < 12) throw new Error("Recovery passphrase must be at least 12 characters");
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  const saltBytes = new Uint8Array(salt);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: saltBytes as unknown as BufferSource, iterations: 120_000, hash: "SHA-256" }, material, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
 
 function toBase64(bytes: Uint8Array) {
   let binary = "";
@@ -30,6 +50,31 @@ async function getIdentity(): Promise<Identity> {
 export async function ensureIdentity() {
   const identity = await getIdentity();
   return JSON.stringify(identity.publicKey);
+}
+
+export async function exportEncryptedRecoveryBundle(passphrase: string) {
+  const identity = await getIdentity();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await recoveryKey(passphrase, salt);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify({ version: RECOVERY_VERSION, identity })));
+  const bundle: RecoveryBundle = { version: RECOVERY_VERSION, salt: bytesToBase64(salt), iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext)) };
+  return JSON.stringify(bundle);
+}
+
+export async function importEncryptedRecoveryBundle(serialized: string, passphrase: string) {
+  let bundle: RecoveryBundle;
+  try { bundle = JSON.parse(serialized) as RecoveryBundle; } catch { throw new Error("Recovery file is not valid"); }
+  if (bundle.version !== RECOVERY_VERSION || !bundle.salt || !bundle.iv || !bundle.ciphertext) throw new Error("Recovery file is not supported");
+  try {
+    const key = await recoveryKey(passphrase, base64ToBytes(bundle.salt));
+    const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(bundle.iv) }, key, base64ToBytes(bundle.ciphertext));
+    const payload = JSON.parse(new TextDecoder().decode(plaintext)) as { version: number; identity: Identity };
+    if (payload.version !== RECOVERY_VERSION || !payload.identity?.publicKey || !payload.identity?.privateKey) throw new Error("Recovery file is not supported");
+    await crypto.subtle.importKey("jwk", payload.identity.privateKey, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]);
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify(payload.identity));
+    return JSON.stringify(payload.identity.publicKey);
+  } catch { throw new Error("Recovery passphrase or file is incorrect"); }
 }
 
 export async function prepareGroupKey(peerPublicKeys: Record<string, string>) {

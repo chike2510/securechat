@@ -62,6 +62,8 @@ vi.mock("@/lib/crypto", () => ({
   decryptMessage: vi.fn(),
   encryptMessage: vi.fn(),
   ensureIdentity: vi.fn().mockResolvedValue("public-key"),
+  exportEncryptedRecoveryBundle: vi.fn(),
+  importEncryptedRecoveryBundle: vi.fn(),
   isEncryptedPayload: vi.fn(),
 }));
 vi.mock("socket.io-client", () => ({
@@ -122,6 +124,7 @@ describe("Home authenticated handoff", () => {
     expect(screen.getByRole("button", { name: "Choose rose avatar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Choose violet avatar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Back to chat" })).toBeTruthy();
+    expect(screen.getByText("Recover on another device")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(logout).toHaveBeenCalledTimes(1);
@@ -146,6 +149,8 @@ describe("Home authenticated handoff", () => {
     expect(screen.getAllByText("SecureChat").length).toBeGreaterThan(0);
     expect(screen.getByText("@elisha")).toBeTruthy();
     expect(screen.getAllByAltText("Elisha Onovo profile photo").length).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector(".chat-shell")?.className).toContain("max-w-full");
+    expect(document.querySelector(".chat-body")?.className).toContain("overflow-x-hidden");
     expect(screen.queryByText("online")).toBeNull();
     expect(screen.getAllByText("Private chat").length).toBe(2);
     expect(screen.getByRole("button", { name: "Security" })).toBeTruthy();
