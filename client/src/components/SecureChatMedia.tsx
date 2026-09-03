@@ -53,8 +53,8 @@ function byteLabel(bytes: number) {
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDuration(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "--:--";
+function formatDuration(seconds: number, empty = "--:--") {
+  if (!Number.isFinite(seconds) || seconds < 0) return empty;
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60)
     .toString()
@@ -431,9 +431,6 @@ export function EncryptedAttachmentCard({
             </Button>
           )}
         </div>
-        <p className="mt-1 max-w-full truncate px-1 text-[10px] text-current/55">
-          {attachment.name}
-        </p>
         {imageOpen && url && (
           <div
             className="fixed inset-0 z-50 grid place-items-center bg-black/90 p-4 backdrop-blur-sm"
@@ -479,7 +476,7 @@ export function EncryptedAttachmentCard({
 
   if (voice)
     return (
-      <div className="mt-2 max-w-full overflow-hidden rounded-[20px] border border-[#d4b3c9]/70 bg-[linear-gradient(135deg,rgba(255,255,255,.96),rgba(244,232,241,.92))] p-2.5 shadow-sm dark:border-[#69536c] dark:bg-[#26333f]">
+      <div className="mt-2 max-w-full overflow-hidden rounded-[20px] border border-[#82cfc3]/80 bg-[#c8f7f1] p-2.5 shadow-sm dark:border-[#3e746f] dark:bg-[#21434a]">
         <div className="flex min-w-0 items-center gap-2.5">
           <Button
             onClick={() => void togglePlayback()}
@@ -499,18 +496,14 @@ export function EncryptedAttachmentCard({
           </Button>
           <div className="min-w-0 flex-1">
             <div
-              className="flex h-8 min-w-0 items-center gap-1 overflow-hidden rounded-full bg-white/75 px-2.5"
+              className="flex h-8 min-w-0 items-center gap-1 overflow-hidden rounded-full bg-white/80 px-2.5 ring-1 ring-[#82cfc3]/70"
               aria-label="Voice note waveform"
             >
               {bars.map((level, index) => (
                 <span
                   key={`${attachment.id}-${index}`}
-                  className="min-w-0 flex-1 rounded-full bg-[#e78cb9] transition-opacity"
-                  style={{
-                    height: `${Math.max(5, Math.round(level * 25))}px`,
-                    opacity:
-                      playing && progress * bars.length > index ? 1 : 0.68,
-                  }}
+                  className={`min-w-0 flex-1 rounded-full transition-colors ${progress * bars.length > index ? "bg-[#d77d9e]" : "bg-[#79aaa5]"}`}
+                  style={{ height: `${Math.max(5, Math.round(level * 25))}px` }}
                 />
               ))}
             </div>
@@ -519,7 +512,8 @@ export function EncryptedAttachmentCard({
                 {playing ? "Playing" : "Voice note"}
               </span>
               <span className="shrink-0">
-                {formatDuration(currentTime)} / {formatDuration(duration)}
+                {formatDuration(currentTime, "0:00")} /{" "}
+                {formatDuration(duration)}
               </span>
             </div>
           </div>
