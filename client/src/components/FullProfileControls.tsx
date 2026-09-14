@@ -42,6 +42,7 @@ import {
   X,
 } from "lucide-react";
 import QRCode from "qrcode";
+import jsQR from "jsqr";
 import { toast } from "sonner";
 
 type Style = "ink" | "mint" | "rose" | "violet";
@@ -116,6 +117,7 @@ export function ProfileControls({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const qrCanvas = useRef<HTMLCanvasElement | null>(null);
   const scannerVideo = useRef<HTMLVideoElement | null>(null);
+  const scannerCanvas = useRef<HTMLCanvasElement | null>(null);
   const scannerStream = useRef<MediaStream | null>(null);
   const scanFrame = useRef<number | null>(null);
   const sentLinkRef = useRef<string | null>(null);
@@ -332,12 +334,31 @@ export function ProfileControls({
     setCameraError(null);
     setScannerOpen(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false,
-      });
+      // DialogContent is mounted after setScannerOpen; wait for the video ref
+      // before requesting playback and beginning the decode loop.
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      };
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false,
+        });
+      } catch {
+        // Some desktop browsers reject facingMode even when a camera exists.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
       scannerStream.current = stream;
-      if (!scannerVideo.current) return;
+      if (!scannerVideo.current) {
+        throw new Error("Camera preview is not ready");
+      }
       scannerVideo.current.srcObject = stream;
       await scannerVideo.current.play();
       const Detector = (
@@ -349,20 +370,45 @@ export function ProfileControls({
           };
         }
       ).BarcodeDetector;
-      if (!Detector) {
-        setCameraError(
-          "QR scanning is not supported in this browser. Use the recovery file instead."
-        );
-        return;
+      let detector: InstanceType<NonNullable<typeof Detector>> | null = null;
+      if (Detector) {
+        try {
+          detector = new Detector({ formats: ["qr_code"] });
+        } catch {
+          detector = null;
+        }
       }
-      const detector = new Detector({ formats: ["qr_code"] });
+      const canvas = scannerCanvas.current ?? document.createElement("canvas");
+      scannerCanvas.current = canvas;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
       const scan = async () => {
         if (!scannerVideo.current || scannerVideo.current.readyState < 2) {
           scanFrame.current = requestAnimationFrame(() => void scan());
           return;
         }
-        const results = await detector.detect(scannerVideo.current);
-        const value = results[0]?.rawValue;
+        let value: string | undefined;
+        if (detector) {
+          try {
+            const results = await detector.detect(scannerVideo.current);
+            value = results[0]?.rawValue;
+          } catch {
+            // Fall back to canvas decoding when native detection fails.
+            detector = null;
+          }
+        }
+        if (!value && context) {
+          const width = scannerVideo.current.videoWidth;
+          const height = scannerVideo.current.videoHeight;
+          if (width > 0 && height > 0) {
+            canvas.width = width;
+            canvas.height = height;
+            context.drawImage(scannerVideo.current, 0, 0, width, height);
+            const frame = context.getImageData(0, 0, width, height);
+            value = jsQR(frame.data, width, height, {
+              inversionAttempts: "attemptBoth",
+            })?.data;
+          }
+        }
         if (value) {
           await handleQrValue(value);
           return;
