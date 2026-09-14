@@ -414,7 +414,7 @@ export function EncryptedAttachmentCard({
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <span>Tap to load image</span>
+                  <span>Tap to open encrypted image</span>
                 )}
               </div>
             )}
@@ -509,7 +509,7 @@ export function EncryptedAttachmentCard({
             </div>
             <div className="mt-1 flex min-w-0 items-center justify-between gap-2 px-1 font-mono text-[9px] uppercase tracking-wider text-[#6e526c]/75 dark:text-white/55">
               <span className="truncate">
-                {playing ? "Playing" : "Voice note"}
+                {playing ? "Playing" : "Encrypted voice note"}
               </span>
               <span className="shrink-0">
                 {formatDuration(currentTime, "0:00")} /{" "}
@@ -556,6 +556,7 @@ export function EncryptedAttachmentCard({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium">{attachment.name}</p>
+        <p className="font-mono text-[8px] uppercase tracking-wider opacity-55">Encrypted academic attachment</p>
         <p className="font-mono text-[9px] uppercase tracking-wider opacity-60">
           {byteLabel(attachment.size)}
         </p>

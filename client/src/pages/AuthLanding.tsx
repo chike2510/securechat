@@ -119,11 +119,11 @@ export default function AuthLanding() {
             <SecureChatLogo size={44} />
             <span className="font-black text-xl tracking-tight">SecureChat</span>
           </div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.26em] text-slate-500 mb-4">Private campus chat</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.26em] text-slate-500 mb-4">SECURE ACADEMIC DOCUMENT EXCHANGE</p>
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-[-0.08em] leading-[.88] max-w-2xl">
-            Stay in<br /><span className="text-[#ff4f87]">touch.</span>
+            Share academic work<br /><span className="text-[#ff4f87]">securely.</span>
           </h1>
-          <p className="max-w-md text-slate-600 mt-6 text-base sm:text-lg leading-relaxed">A simple place to chat with people you know at school.</p>
+          <p className="max-w-md text-slate-600 mt-6 text-base sm:text-lg leading-relaxed">A focused environment for FUPRE students to exchange academic documents and messages within controlled conversations.</p>
         </section>
 
         <section className="order-1 lg:order-2 bg-white/95 border border-slate-900/15 shadow-2xl p-5 sm:p-7">
@@ -174,7 +174,7 @@ export default function AuthLanding() {
           {!verificationOpen && <button type="button" onClick={() => setRegistering(value => !value)} className="w-full mt-5 text-sm text-slate-500 hover:text-[#101722]">
             {registering ? "Already have an account? Sign in" : "Create a new account"}
           </button>}
-          {!verificationOpen && <p className="mt-6 pt-4 border-t border-slate-900/10 text-xs text-slate-400">Sign in with your email or matric number.</p>}
+          {!verificationOpen && <p className="mt-6 pt-4 border-t border-slate-900/10 text-xs text-slate-400">Registered users provide FUPRE student details for university-oriented access.</p>}
         </section>
       </div>
     </main>

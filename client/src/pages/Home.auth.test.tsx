@@ -162,14 +162,14 @@ describe("Home authenticated handoff", () => {
   it("renders the chat workspace when OTP verification has produced an authenticated user", async () => {
     const { default: Home } = await import("./Home");
     render(<Home />);
-    expect(screen.getByRole("heading", { name: "Messages" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Documents & messages" })).toBeTruthy();
     expect(screen.queryByText("Welcome back")).toBeNull();
     expect(screen.queryByText("University communications / v1.0")).toBeNull();
     expect(screen.queryByText("Local key")).toBeNull();
     expect(screen.getByRole("button", { name: /new group/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Use dark mode" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Find friend" }));
-    expect(screen.getByText("Other people on SecureChat")).toBeTruthy();
+    expect(screen.getByText("Registered FUPRE users for academic exchange")).toBeTruthy();
   });
 
   it("shows only the SecureChat logo while the authenticated workspace is loading", async () => {
@@ -185,10 +185,10 @@ describe("Home authenticated handoff", () => {
 
     expect(
       screen
-        .getByRole("status", { name: "Loading SecureChat" })
+        .getByRole("status", { name: "Loading secure academic exchange" })
         .querySelector('img[alt="SecureChat"]')
     ).toBeTruthy();
-    expect(screen.queryByText("Loading SecureChat")).toBeNull();
+    expect(screen.queryByText("Loading secure academic exchange")).toBeNull();
   });
 
   it("opens a profile menu without signing out until sign out is explicitly chosen", async () => {
@@ -284,9 +284,9 @@ describe("Home authenticated handoff", () => {
       "overflow-x-hidden"
     );
     expect(screen.queryByText("online")).toBeNull();
-    expect(screen.getAllByText("Private chat").length).toBe(2);
+    expect(screen.getAllByText("Private academic exchange").length).toBe(2);
     expect(screen.getByRole("button", { name: "Security" })).toBeTruthy();
-    expect(screen.getByPlaceholderText("Write a message")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Write a message or share an academic document")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Attach encrypted file" })
     ).toBeTruthy();
