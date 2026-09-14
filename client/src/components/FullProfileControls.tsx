@@ -779,21 +779,25 @@ export function ProfileControls({
               {recoveryMode === "idle" && (
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   <Button
-                    className="h-11 rounded-xl"
+                    className="h-auto min-h-11 w-full min-w-0 rounded-xl px-3 py-2 whitespace-normal"
                     onClick={() => void startLink()}
                     disabled={recoveryBusy}
                   >
-                    <QrCode className="mr-2 h-4 w-4" />
-                    Link new device
+                    <QrCode className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="min-w-0 whitespace-normal text-center leading-tight">
+                      Link new device
+                    </span>
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-11 rounded-xl"
+                    className="h-auto min-h-11 w-full min-w-0 rounded-xl px-3 py-2 whitespace-normal"
                     onClick={() => void startScanner()}
                     disabled={recoveryBusy}
                   >
-                    <ScanLine className="mr-2 h-4 w-4" />
-                    Recover chats from another device
+                    <ScanLine className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="min-w-0 whitespace-normal text-center leading-tight">
+                      Recover chats from another device
+                    </span>
                   </Button>
                 </div>
               )}
