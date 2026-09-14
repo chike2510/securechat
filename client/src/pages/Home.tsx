@@ -402,7 +402,7 @@ export default function Home() {
       <main className="min-h-screen blueprint-bg flex items-center justify-center">
         <div
           role="status"
-          aria-label="Loading SecureChat"
+          aria-label="Loading secure academic exchange"
           className="grid place-items-center animate-pulse"
         >
           <SecureChatLogo size={88} />
@@ -418,9 +418,10 @@ export default function Home() {
       <header className="h-16 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 relative z-20">
         <div className="flex items-center gap-3">
           <SecureChatLogo size={42} />
-          <p className="font-black tracking-tight text-lg leading-none">
-            SecureChat
-          </p>
+          <div>
+            <p className="font-black tracking-tight text-lg leading-none">SecureChat</p>
+            <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-slate-500 mt-1">Academic document exchange</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-slate-500">
@@ -526,10 +527,10 @@ export default function Home() {
               <div className="flex items-start justify-between mb-5">
                 <div>
                   <p className="font-mono text-[10px] text-slate-400 uppercase tracking-[0.24em]">
-                    Inbox
+                    Academic workspace
                   </p>
                   <h1 className="text-3xl font-black tracking-[-0.05em] mt-1">
-                    Messages
+                    Documents & messages
                   </h1>
                 </div>
                 <Badge className="rounded-sm bg-[#ffd7e5] text-[#101722] hover:bg-[#ffd7e5] font-mono text-[10px]">
@@ -565,7 +566,7 @@ export default function Home() {
                     setSearch(event.target.value);
                     setPeopleOpen(false);
                   }}
-                  placeholder="Find a friend"
+                  placeholder="Find a student or collaborator"
                   className="h-10 rounded-sm border-slate-900/15 bg-slate-50 pl-10 font-mono text-xs"
                 />
               </div>
@@ -577,7 +578,7 @@ export default function Home() {
                     <div>
                       <p className="text-sm font-bold">Find friends</p>
                       <p className="text-[11px] text-slate-500">
-                        Other people on SecureChat
+                        Registered FUPRE users for academic exchange
                       </p>
                     </div>
                     <button
@@ -840,7 +841,7 @@ export default function Home() {
                       <span className="shrink-0">
                         {activeConversation.kind === "group"
                           ? "Group channel"
-                          : "Private chat"}
+                          : "Private academic exchange"}
                       </span>
                       <div className="chat-divider h-px min-w-0 flex-1" />
                     </div>
@@ -917,7 +918,7 @@ export default function Home() {
                   <div className="mx-auto w-full max-w-3xl min-w-0">
                     <div className="mb-3 flex items-center gap-2 text-sm font-medium text-[#d77d9e]">
                       <LockKeyhole className="h-4 w-4" />
-                      Private chat
+                      Private academic exchange
                     </div>
                     <div className="chat-composer-box flex w-full min-w-0 items-end gap-1.5 rounded-[1.8rem] border p-2 shadow-lg">
                       <EncryptedMediaComposer
@@ -937,7 +938,7 @@ export default function Home() {
                             void sendMessage();
                           }
                         }}
-                        placeholder="Write a message"
+                        placeholder="Write a message or share an academic document"
                         className="min-h-[48px] min-w-0 basis-0 flex-1 resize-none border-0 bg-transparent px-2 py-3 text-[15px] text-[#101722] placeholder:text-slate-500 focus-visible:ring-0"
                       />
                       <Button
@@ -999,9 +1000,10 @@ function WorkspaceDatabasePending({
       <header className="h-16 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl flex items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-3">
           <SecureChatLogo size={42} />
-          <p className="font-black tracking-tight text-lg leading-none">
-            SecureChat
-          </p>
+          <div>
+            <p className="font-black tracking-tight text-lg leading-none">SecureChat</p>
+            <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-slate-500 mt-1">Academic document exchange</p>
+          </div>
         </div>
         <button
           onClick={() => void logout()}
@@ -1019,7 +1021,7 @@ function WorkspaceDatabasePending({
             You are signed in.
           </h1>
           <p className="text-slate-600 leading-relaxed mt-4 max-w-xl">
-            Your SecureChat account is verified. The private message store is
+            Your SecureChat account is verified. The private academic document store is
             reconnecting, so conversations and sending are temporarily paused
             rather than sending you back to login.
           </p>
@@ -1049,8 +1051,7 @@ function EmptyConversation({ peer }: { peer?: string | null }) {
       </div>
       <h3 className="font-black text-xl mt-6">Channel ready</h3>
       <p className="text-sm text-slate-500 mt-2">
-        Say hello to {peer || "your contact"}. This channel is protected by
-        local encryption.
+        Start an academic exchange with {peer || "your contact"}. Messages and attachments are protected by local encryption.
       </p>
     </div>
   );
@@ -1063,13 +1064,13 @@ function NoActiveChat({ onStart }: { onStart: () => void }) {
           <MessageCircle className="h-8 w-8" />
         </div>
         <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-slate-400 mt-8">
-          SecureChat
+          Academic document exchange
         </p>
         <h2 className="text-4xl font-black tracking-[-0.06em] mt-2">
           Choose a conversation.
         </h2>
         <p className="text-slate-500 mt-4 leading-relaxed">
-          Find someone first, or create a group for people you know.
+          Find a registered FUPRE user or create a group for a project, course, or department.
         </p>
         <Button
           onClick={onStart}
